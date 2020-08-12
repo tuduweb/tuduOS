@@ -17,8 +17,8 @@
 ; * void* lwp_get_sys_api(rt_uint32_t number);
 ; */
     IMPORT lwp_get_sys_api
-    IMPORT lwp_get_kernel_sp
-    IMPORT lwp_set_kernel_sp
+    IMPORT lwt_get_kernel_sp
+    IMPORT lwt_set_kernel_sp
 
 ;/*
 ; * void lwp_user_entry(args, text, data);
@@ -26,23 +26,23 @@
 lwp_user_entry    PROC
     EXPORT  lwp_user_entry
 
-    PUSH    {R0-R3}             ; push text&data addr.
+    PUSH    {R0-R3,LR}             ; push text&data addr.; ADD LR
 
     MOV     R0, SP              ; v1 = SP
-    BL      lwp_set_kernel_sp   ; lwp_set_kernel_sp(v1)
+    BL      lwt_set_kernel_sp   ; lwp_set_kernel_sp(v1) ;sp寄存器指向stack,保存当前(kernel)SP的值
 
-    ; set CPU to user-thread mode.
-    MRS     R2, CONTROL
-    ORR     R2, R2, #0x03       ; use PSP, user-thread mode.
-    MSR     CONTROL, R2
+    ; set CPU to user-thread mode.;在本版本中,如果不注释,在引起Pendcv中断时候会报HardFault
+    ;MRS     R2, CONTROL
+    ;ORR     R2, R2, #0x03       ; use PSP, user-thread mode.
+    ;MSR     CONTROL, R2
 
-    POP     {R0-R3}             ; pop app address to R1.
+    POP     {R0-R3,LR}             ; pop app address to R1.;ADD LR
     ; set data address.
     MOV     R9, R2
 
     ; run app, only Thumb-mode.
-    ORR     R1, R1, #0x01
-    BX      R1
+    ORR     R1, R1, #0x01       ;指令模式的最后一位需要处理一下(32位指令集)
+    BX      R1                  ;执行程序
 
     ; never reach here!
     ENDP
@@ -71,7 +71,7 @@ SVC_Handler    PROC
     PUSH    {R0}            ; push api
 
     ; get kernel SP to R0.
-    BL lwp_get_kernel_sp
+    BL lwt_get_kernel_sp
 
     POP     {R2}             ; pop api to R2.
     POP     {R1}             ; pop app SP to R1.
@@ -92,13 +92,13 @@ SVC_Handler    PROC
     MSR     PSP, R0             ; update SP, API is executed with kernel SP
 
     ; set to thread-privilege mode.
-    MRS     R3, CONTROL
-    BIC     R3, R3, #0x01
-    ORR     R3, R3, #0x02
-    MSR     CONTROL, R3
+    ;MRS     R3, CONTROL
+    ;BIC     R3, R3, #0x01
+    ;ORR     R3, R3, #0x02
+    ;MSR     CONTROL, R3
 
     POP     {LR}                ; 0xFFFFFFED
-    ORR     LR, LR, #0x10
+    ORR     LR, LR, #0x10       ;Thumb模式?
     BX      LR
 
     ENDP
@@ -111,7 +111,7 @@ svc_exit     PROC
 
     ; get user SP.
     PUSH    {R0}                    ; push result to SP.
-    BL      lwp_get_kernel_sp
+    BL      lwt_get_kernel_sp
     ldr     r3, [r0, #-4]
     pop {r0}
 
@@ -119,10 +119,10 @@ svc_exit     PROC
     ldr     r1, [r3, #24]           ; load pc
     add     r3, #32                 ; exception_stack_frame size
     MSR     PSP, R3                 ; restore app stack pointer
-    ; restore to PSP & thread-unprivilege mode.
-    MRS     R2, CONTROL
-    ORR     R2, R2, #0x03
-    MSR     CONTROL, R2
+    ; restore to PSP & thread-unprivilege mode.;进入线程非特权模式,在核心中测试时，切勿进入，否则会发生无法切换线程的错误。
+    ;MRS     R2, CONTROL
+    ;ORR     R2, R2, #0x03
+    ;MSR     CONTROL, R2
 
     ; return to lwp.
     ORR     R1, R1, #0x01           ; only Thumb-mode.

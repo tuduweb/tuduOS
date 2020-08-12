@@ -20,7 +20,7 @@
 SCB_VTOR        EQU     0xE000ED08               ; Vector Table Offset Register
 NVIC_INT_CTRL   EQU     0xE000ED04               ; interrupt control state register
 NVIC_SYSPRI2    EQU     0xE000ED20               ; system priority register (2)
-NVIC_PENDSV_PRI EQU     0xFFFF0000               ; PendSV and SysTick priority value (lowest)
+NVIC_PENDSV_PRI EQU     0x00FF0000               ; PendSV priority value (lowest)
 NVIC_PENDSVSET  EQU     0x10000000               ; value to trigger PendSV exception
 
     AREA |.text|, CODE, READONLY, ALIGN=2
@@ -43,7 +43,7 @@ rt_hw_interrupt_disable    PROC
     ENDP
 
 ;/*
-; * void rt_hw_interrupt_enable(rt_base_t level);
+; * void rt_hw_interrupt_enable(rt_base_t level);//将变量 level 作为需要恢复的状态，覆盖芯片的全局中断状态。
 ; */
 rt_hw_interrupt_enable    PROC
     EXPORT  rt_hw_interrupt_enable
@@ -69,11 +69,11 @@ rt_hw_context_switch    PROC
     MOV     r3, #1
     STR     r3, [r2]
 
-    LDR     r2, =rt_interrupt_from_thread   ; set rt_interrupt_from_thread
+    LDR     r2, =rt_interrupt_from_thread   ; set rt_interrupt_from_thread;from_thread->sp
     STR     r0, [r2]
 
 _reswitch
-    LDR     r2, =rt_interrupt_to_thread     ; set rt_interrupt_to_thread
+    LDR     r2, =rt_interrupt_to_thread     ; set rt_interrupt_to_thread;to_thread->sp
     STR     r1, [r2]
 
     LDR     r0, =NVIC_INT_CTRL              ; trigger the PendSV exception (causes context switch)
@@ -105,7 +105,7 @@ PendSV_Handler   PROC
     LDR     r1, [r0]
     CBZ     r1, switch_to_thread    ; skip register save at the first time
 
-    MRS     r1, psp                 ; get from thread stack pointer
+    MRS     r1, psp                 ; get from thread stack pointer;psp->r1
 
     IF      {FPU} != "SoftVFP"
     TST     lr, #0x10               ; if(!EXC_RETURN[4])
@@ -149,12 +149,15 @@ switch_to_thread
     CMP     r3,  #0                 ; if(flag_r3 != 0)
     BICNE   lr, lr, #0x10           ; lr &= ~(1 << 4), set FPCA.
     ENDIF
+    ;mpu
 
 pendsv_exit
     ; restore interrupt
     MSR     PRIMASK, r2
-
-    ORR     lr, lr, #0x04
+    ;MSR     R1, CONTROL
+    ;TST     R1,#1
+    ;BNE    ret_to_user
+    ORR     lr, lr, #0x04;TO PSP MODE
     BX      lr
     ENDP
 
@@ -186,7 +189,7 @@ rt_hw_context_switch_to    PROC
     MOV     r0, #1
     STR     r0, [r1]
 
-    ; set the PendSV and SysTick exception priority
+    ; set the PendSV exception priority
     LDR     r0, =NVIC_SYSPRI2
     LDR     r1, =NVIC_PENDSV_PRI
     LDR.W   r2, [r0,#0x00]       ; read
@@ -222,7 +225,7 @@ rt_hw_interrupt_thread_switch PROC
 HardFault_Handler    PROC
 
     ; get current context
-    TST     lr, #0x04               ; if(!EXC_RETURN[2])
+    TST     lr, #0x04               ; if(!EXC_RETURN[2]);根据这一bit的数据判断进入中断前的模式
     ITE     EQ
     MRSEQ   r0, msp                 ; [2]=0 ==> Z=1, get fault context from handler.
     MRSNE   r0, psp                 ; [2]=1 ==> Z=0, get fault context from thread.
