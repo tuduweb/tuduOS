@@ -624,6 +624,8 @@ struct rt_thread
 #endif
 
     rt_ubase_t user_data;                             /**< private user data beyond this thread */
+    rt_list_t sibling;                                  /*bin:*/
+
 };
 typedef struct rt_thread *rt_thread_t;
 

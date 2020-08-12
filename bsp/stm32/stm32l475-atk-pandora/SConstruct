@@ -58,5 +58,10 @@ objs.extend(SConscript(os.path.join(libraries_path_prefix, 'HAL_Drivers', 'SCons
 
 objs.extend(SConscript(os.path.join(os.getcwd(), 'board', 'ports', 'SConscript')))
 
+# 自己添加的
+objs.extend(SConscript(os.path.join(RTT_ROOT, 'applications', 'SConscript')))
+objs.extend(SConscript(os.path.join(RTT_ROOT, 'extends', 'SConscript')))
+
+
 # make a building
 DoBuilding(TARGET, objs)

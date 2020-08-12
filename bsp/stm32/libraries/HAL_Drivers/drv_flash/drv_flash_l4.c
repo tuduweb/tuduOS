@@ -14,9 +14,7 @@
 #include "drv_config.h"
 #include "drv_flash.h"
 
-#if defined(PKG_USING_FAL)
 #include "fal.h"
-#endif
 
 //#define DRV_DEBUG
 #define LOG_TAG                "drv.flash"
@@ -264,13 +262,19 @@ __exit:
     return size;
 }
 
-#if defined(PKG_USING_FAL)
 
 static int fal_flash_read(long offset, rt_uint8_t *buf, size_t size);
 static int fal_flash_write(long offset, const rt_uint8_t *buf, size_t size);
 static int fal_flash_erase(long offset, size_t size);
 
-const struct fal_flash_dev stm32_onchip_flash = { "onchip_flash", STM32_FLASH_START_ADRESS, STM32_FLASH_SIZE, FLASH_PAGE_SIZE, {NULL, fal_flash_read, fal_flash_write, fal_flash_erase} };
+const struct fal_flash_dev stm32_onchip_flash =
+{
+    "onchip_flash",
+    STM32_FLASH_START_ADRESS,
+    STM32_FLASH_SIZE,//(512 * 1024)
+    FLASH_PAGE_SIZE,
+    {NULL, fal_flash_read, fal_flash_write, fal_flash_erase}
+    };
 
 static int fal_flash_read(long offset, rt_uint8_t *buf, size_t size)
 {
@@ -287,5 +291,4 @@ static int fal_flash_erase(long offset, size_t size)
     return stm32_flash_erase(stm32_onchip_flash.addr + offset, size);
 }
 
-#endif
 #endif /* BSP_USING_ON_CHIP_FLASH */

@@ -104,7 +104,7 @@ int mnt_init(void)
 
     return 0;
 }
-INIT_ENV_EXPORT(mnt_init);
+//INIT_ENV_EXPORT(mnt_init);
 
 #endif /* defined(RT_USING_DFS_ELMFAT) && !defined(BSP_USING_SDCARD) */
 #endif /* BSP_USING_QSPI_FLASH */

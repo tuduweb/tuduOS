@@ -340,7 +340,8 @@ static int _msh_exec_lwp(char *cmd, rt_size_t length)
     int fd = -1;
     char *pg_name;
 
-    extern int exec(char*, int, char**);
+    //extern int exec(char*, int, char**);
+    extern int lwt_execve(char *filename, int argc, char **argv, char **envp);
 
     /* find the size of first command */
     while ((cmd[cmd0_size] != ' ' && cmd[cmd0_size] != '\t') && cmd0_size < length)
@@ -363,8 +364,8 @@ static int _msh_exec_lwp(char *cmd, rt_size_t length)
 
     /* found program */
     close(fd);
-    exec(pg_name, argc, argv);
-
+    //exec(pg_name, argc, argv);
+    lwt_execve(pg_name, argc, argv, NULL);
     return 0;
 }
 #endif

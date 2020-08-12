@@ -1,0 +1,15 @@
+import rtconfig
+from building import *
+
+cwd     = GetCurrentDir()
+CPPPATH = [cwd, str(Dir('#'))]
+src     = Split("""
+mnt.c
+comm.c
+ef_fal_port.c
+app.c
+""")
+
+group = DefineGroup('Applications', src, depend = [''], CPPPATH = CPPPATH)
+
+Return('group')
