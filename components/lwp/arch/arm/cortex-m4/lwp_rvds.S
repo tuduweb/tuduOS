@@ -38,10 +38,10 @@ lwp_user_entry    PROC
 
     POP     {R0-R3,LR}             ; pop app address to R1.;ADD LR
     ; set data address.
-    MOV     R9, R2
+    MOV     R9, R2              ;R9 偏址寄存器
 
     ; run app, only Thumb-mode.
-    ORR     R1, R1, #0x01       ;指令模式的最后一位需要处理一下(32位指令集)
+    ORR     R1, R1, #0x01       ;指令模式的最后一位需要处理一下(32位指令集) ;   R1 = text_entry
     BX      R1                  ;执行程序
 
     ; never reach here!
@@ -61,9 +61,12 @@ SVC_Handler    PROC
     MRSEQ   R1, MSP
     MRSNE   R1, PSP
     PUSH    {R1}           ; push app SP.
-
+	;   The SVC number is held in 8 bits instead of the 24 bits in ARM state.
     ; get SVC number.
-    mov     R0, R7
+    LDR     R1,[R1,#24]   ;从栈中读取PC值
+    LDRB    R1,[R1,#-2]   ;从SVC指令中读取立即数放到R0
+
+    mov     R0, R7          ;R7 is filled by APP syscall assembly code
 
     ; get kernel system API
     BL      lwp_get_sys_api
@@ -88,7 +91,7 @@ SVC_Handler    PROC
 
     LDR     R3, =svc_exit
     STR     R3, [R0, #20]       ; update LR
-    STR     R2, [R0, #24]       ; update api to PC
+    STR     R2, [R0, #24]       ; update api to PC  ;   R2
     MSR     PSP, R0             ; update SP, API is executed with kernel SP
 
     ; set to thread-privilege mode.
@@ -124,7 +127,7 @@ svc_exit     PROC
     ;ORR     R2, R2, #0x03
     ;MSR     CONTROL, R2
 
-    ; return to lwp.
+    ; return to lwp.<User App>
     ORR     R1, R1, #0x01           ; only Thumb-mode.
     BX      R1                      ; return to user app.
 
