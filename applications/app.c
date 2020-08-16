@@ -11,7 +11,7 @@ static void syscall_app_entry(void *parameter)
 		rt_thread_t thread = rt_thread_self();
     rt_kprintf("syscall APP test begin\n");
     char txt[] = "syscall\n";
-		__asm("SVC #1");
+		__asm("SVC #2");
     //syscall(0xff, txt, sizeof(txt));
     //syscall(1,1);
     rt_kprintf("syscall APP test end\n");
