@@ -447,6 +447,8 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
         //
     }
 
+    rt_kprintf("LWT stack %p - %p\n", thread->stack_addr, (rt_uint32_t)thread->stack_addr + thread->stack_size);
+
     int IRID = rt_hw_interrupt_disable();
     
     /* 如果当前是LWP进程,那么构造相互关系 */

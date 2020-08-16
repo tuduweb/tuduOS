@@ -157,34 +157,50 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>107</LineNumber>
+          <LineNumber>131</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134265294</Address>
+          <Address>134218926</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\..\..\extends\bin-core\xipfs.c</Filename>
+          <Filename>..\..\..\components\lwp\arch\arm\cortex-m4\lwp_rvds.S</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\rt_thread\../../../extends/bin-core/xipfs.c\107</Expression>
+          <Expression>\\rt_thread\../../../components/lwp/arch/arm/cortex-m4/lwp_rvds.S\131</Expression>
         </Bp>
         <Bp>
           <Number>1</Number>
           <Type>0</Type>
-          <LineNumber>22</LineNumber>
+          <LineNumber>56</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134294010</Address>
+          <Address>134218812</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>applications\lcd_sample.c</Filename>
+          <Filename>..\..\..\components\lwp\arch\arm\cortex-m4\lwp_rvds.S</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\rt_thread\applications/lcd_sample.c\22</Expression>
+          <Expression>\\rt_thread\../../../components/lwp/arch/arm/cortex-m4/lwp_rvds.S\56</Expression>
+        </Bp>
+        <Bp>
+          <Number>2</Number>
+          <Type>0</Type>
+          <LineNumber>12</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>134357916</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>..\..\..\applications\app.c</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\rt_thread\../../../applications/app.c\12</Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>
@@ -193,7 +209,20 @@
           <WinNumber>1</WinNumber>
           <ItemText>heap_ptr[mem-&gt;prev]</ItemText>
         </Ww>
+        <Ww>
+          <count>1</count>
+          <WinNumber>1</WinNumber>
+          <ItemText>(rt_thread_t)0x20007F3C</ItemText>
+        </Ww>
       </WatchWindow1>
+      <MemoryWindow1>
+        <Mm>
+          <WinNumber>1</WinNumber>
+          <SubType>0</SubType>
+          <ItemText>0x20007C20</ItemText>
+          <AccSizeX>0</AccSizeX>
+        </Mm>
+      </MemoryWindow1>
       <Tracepoint>
         <THDelay>0</THDelay>
       </Tracepoint>
@@ -1404,7 +1433,7 @@
 
   <Group>
     <GroupName>lwP</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>

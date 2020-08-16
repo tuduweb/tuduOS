@@ -50,7 +50,7 @@ void sys_exit(int value)
     tid = rt_thread_self();
     //__exit_files(tid);//暂时没有用到lwp
     rt_thread_delete(tid);
-
+    //到这里都是特权级状态，直接删除tid，那么状态还是特权级下
     rt_schedule();
 
     return;
