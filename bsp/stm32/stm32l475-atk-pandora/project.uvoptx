@@ -157,24 +157,40 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>131</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134218926</Address>
+          <LineNumber>12</LineNumber>
+          <EnabledFlag>0</EnabledFlag>
+          <Address>134358206</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\..\..\components\lwp\arch\arm\cortex-m4\lwp_rvds.S</Filename>
+          <Filename>..\..\..\applications\app.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\rt_thread\../../../components/lwp/arch/arm/cortex-m4/lwp_rvds.S\131</Expression>
+          <Expression>\\rt_thread\../../../applications/app.c\12</Expression>
         </Bp>
         <Bp>
           <Number>1</Number>
           <Type>0</Type>
+          <LineNumber>0</LineNumber>
+          <EnabledFlag>0</EnabledFlag>
+          <Address>536902262</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename></Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>0x20007A76</Expression>
+        </Bp>
+        <Bp>
+          <Number>2</Number>
+          <Type>0</Type>
           <LineNumber>56</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
+          <EnabledFlag>0</EnabledFlag>
           <Address>134218812</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
@@ -187,20 +203,68 @@
           <Expression>\\rt_thread\../../../components/lwp/arch/arm/cortex-m4/lwp_rvds.S\56</Expression>
         </Bp>
         <Bp>
-          <Number>2</Number>
+          <Number>3</Number>
           <Type>0</Type>
-          <LineNumber>12</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134357916</Address>
+          <LineNumber>0</LineNumber>
+          <EnabledFlag>0</EnabledFlag>
+          <Address>536901844</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\..\..\applications\app.c</Filename>
+          <Filename></Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\rt_thread\../../../applications/app.c\12</Expression>
+          <Expression>0x200078D4</Expression>
+        </Bp>
+        <Bp>
+          <Number>4</Number>
+          <Type>0</Type>
+          <LineNumber>72</LineNumber>
+          <EnabledFlag>0</EnabledFlag>
+          <Address>134218838</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>..\..\..\components\lwp\arch\arm\cortex-m4\lwp_rvds.S</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\rt_thread\../../../components/lwp/arch/arm/cortex-m4/lwp_rvds.S\72</Expression>
+        </Bp>
+        <Bp>
+          <Number>5</Number>
+          <Type>0</Type>
+          <LineNumber>251</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>134219090</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>1</BreakIfRCount>
+          <Filename>..\..\..\components\lwp\arch\arm\cortex-m4\lwp_rvds.S</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression>\\rt_thread\../../../components/lwp/arch/arm/cortex-m4/lwp_rvds.S\251</Expression>
+        </Bp>
+        <Bp>
+          <Number>6</Number>
+          <Type>0</Type>
+          <LineNumber>300</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>0</Address>
+          <ByteObject>0</ByteObject>
+          <HtxType>0</HtxType>
+          <ManyObjects>0</ManyObjects>
+          <SizeOfObject>0</SizeOfObject>
+          <BreakByAccess>0</BreakByAccess>
+          <BreakIfRCount>0</BreakIfRCount>
+          <Filename>..\..\..\components\lwp\arch\arm\cortex-m4\lwp_rvds.S</Filename>
+          <ExecCommand></ExecCommand>
+          <Expression></Expression>
         </Bp>
       </Breakpoint>
       <WatchWindow1>
@@ -219,7 +283,7 @@
         <Mm>
           <WinNumber>1</WinNumber>
           <SubType>0</SubType>
-          <ItemText>0x20007C20</ItemText>
+          <ItemText>0x20008388</ItemText>
           <AccSizeX>0</AccSizeX>
         </Mm>
       </MemoryWindow1>

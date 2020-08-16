@@ -189,6 +189,8 @@ static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr
             result = -RT_ENOMEM;
             goto _exit;
         }
+        rt_kprintf("LWT APP stack %p - %p\n", lwt->data_entry, (rt_uint32_t)lwt->data_entry + lwt->data_size);
+
 
     }
 
@@ -447,7 +449,7 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
         //
     }
 
-    rt_kprintf("LWT stack %p - %p\n", thread->stack_addr, (rt_uint32_t)thread->stack_addr + thread->stack_size);
+    rt_kprintf("LWT kernel stack %p - %p\n", thread->stack_addr, (rt_uint32_t)thread->stack_addr + thread->stack_size);
 
     int IRID = rt_hw_interrupt_disable();
     
