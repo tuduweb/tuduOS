@@ -367,14 +367,25 @@ void lwt_cleanup(rt_thread_t tid)
             rt_free(lwt->text_entry);
 #endif
         }
-        if (lwt->data_entry)
-        {
-            dbg_log(DBG_LOG, "lwp data free: %p\n", lwt->data_entry);
-            rt_free(lwt->data_entry);
-        }
+
+        //rt_free(lwt);
+
     }
 
-    //rt_free(lwt);
+    if (lwt->data_entry)
+    {
+            dbg_log(DBG_LOG, "lwp data free: %p\n", lwt->data_entry);
+            rt_free(lwt->data_entry);
+    }
+
+    if(lwt->args)
+    {
+        rt_free(lwt->args);
+    }
+
+    
+
+    rt_free(lwt);
 
 
     //还需要清 LWT
