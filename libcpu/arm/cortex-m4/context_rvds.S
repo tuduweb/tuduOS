@@ -155,8 +155,8 @@ pendsv_exit
     ; restore interrupt
     MSR     PRIMASK, r2
     ;MSR     R1, CONTROL
-    ;TST     R1,#1
-    ;BNE    ret_to_user
+    ;TST     R1,#1  ;CONTROL[1] 为0表示选择MSP，为1表示选择PSP  ;TST 判断该为是否为0 为0则Z=1
+    ;BNE    ret_to_user ;Z!=0时执行  即MSP时执行
     ORR     lr, lr, #0x04;TO PSP MODE
     BX      lr
     ENDP

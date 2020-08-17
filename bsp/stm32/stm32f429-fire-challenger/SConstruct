@@ -47,7 +47,7 @@ Export('SDK_LIB')
 # prepare building environment
 objs = PrepareBuilding(env, RTT_ROOT, has_libcpu=False)
 
-stm32_library = 'STM32L4xx_HAL'
+stm32_library = 'STM32F4xx_HAL'
 rtconfig.BSP_LIBRARY_TYPE = stm32_library
 
 # include libraries
@@ -56,8 +56,8 @@ objs.extend(SConscript(os.path.join(libraries_path_prefix, stm32_library, 'SCons
 # include drivers
 objs.extend(SConscript(os.path.join(libraries_path_prefix, 'HAL_Drivers', 'SConscript')))
 
-# 自己添加的
-objs.extend(SConscript(os.path.join(os.getcwd(), 'board', 'ports', 'SConscript')))
+# 自己添加的、
+# objs.extend(SConscript(os.path.join(os.getcwd(), 'board', 'ports', 'SConscript')))
 objs.extend(SConscript(os.path.join(RTT_ROOT, 'applications', 'SConscript')))
 objs.extend(SConscript(os.path.join(RTT_ROOT, 'extends', 'SConscript')))
 
