@@ -48,7 +48,7 @@ lwp_user_entry2    PROC
     ENDP
 
 ;/*
-; * void lwp_user_entry(args, text, data);
+; * void lwp_user_entry(args, text, R9, data);
 ; */
 lwp_user_entry    PROC
     EXPORT  lwp_user_entry
@@ -60,7 +60,14 @@ lwp_user_entry    PROC
 
     POP     {R0-R3,LR}             ; pop app address to R1.;ADD LR
     ; set data address.
-    MOV     R9, R2              ;R9 偏址寄存器=data_entry
+    MOV     R9, R2              ;R9 偏址寄存器=data_entry(lwt)
+
+    ; 判断user_stack是否为0
+    CMP     R3, #0
+    ; 不为0则改变SP
+    MOVNE   SP, R3
+    ADD     R2, #0x100            ;影响..?
+    MOVEQ   SP, R2
 
     LDR     R2, =lwt_thread_return
     MOV     LR, R2

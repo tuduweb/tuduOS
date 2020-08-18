@@ -23,7 +23,7 @@
 
 struct lwt_pidmap lwt_pid;
 
-extern void lwp_user_entry(void *args, const void *text, void *data);
+extern void lwp_user_entry(void *args, const void *text, void *r9, void *data);
 void lwt_set_kernel_sp(uint32_t *sp)
 {
     rt_thread_t thread = rt_thread_self();
@@ -236,7 +236,7 @@ struct rt_lwt *rt_lwt_self(void)
     return tid->lwp;
 }
 
-struct rt_lwt *rt_lwp_new(void)
+struct rt_lwt *rt_lwt_new(void)
 {
     struct rt_lwt *lwt = RT_NULL;
     //关闭中断 主要是MPU保护这一块
@@ -280,6 +280,16 @@ struct rt_lwt *rt_lwp_new(void)
     return lwt;
 }
 
+int rt_lwt_free(struct rt_lwt *lwt)
+{
+    if(lwt)
+    {
+        rt_free(lwt->fdt.fds);
+        rt_free(lwt);
+    }
+    return RT_EOK;
+}
+
 void lwt_ref_inc(struct rt_lwt *lwt)
 {
     rt_uint32_t level = rt_hw_interrupt_disable();
@@ -301,10 +311,20 @@ void lwt_ref_dec(struct rt_lwt *lwt)
             //无任何地方引用,执行删除操作
 
             //共享内存
-            //引用对象
+            //引用对象销毁
+            while (lwt->fdt.maxfd > 1)
+            {
+                lwt->fdt.maxfd --;
+                close(lwt->fdt.maxfd - 1);//注意不能销毁uart,否则shell失效
+            }
             //数据删除
 
+            //销毁旗下所有没启动的thread,没启动的thread不会自动退出?
+            //启动的也要删除吧
+
             //以上操作需要防止内存溢出
+
+            rt_lwt_free(lwt);
         }
     }
 
@@ -347,6 +367,7 @@ pid_t lwt_get_pid(void)
     return 0;
 }
 
+//lwt主线程的cleanup程序
 void lwt_cleanup(rt_thread_t tid)
 {
     struct rt_lwt *lwt;
@@ -383,15 +404,26 @@ void lwt_cleanup(rt_thread_t tid)
         rt_free(lwt->args);
     }
 
-    
+    lwt_ref_dec(lwt);//引用--,当为0时销毁
 
-    rt_free(lwt);
+    //rt_free(lwt);
 
 
     //还需要清 LWT
 }
 
-extern void lwp_user_entry(void *args, const void *text, void *data);
+//lwt子线程临时cleanup程序
+void lwt_son_cleanup(rt_thread_t tid)
+{
+    struct rt_lwt *lwt;
+
+    dbg_log(DBG_INFO, "thread: %s, stack_addr: %08X\n", tid->name, tid->stack_addr);
+
+    lwt = (struct rt_lwt *)tid->lwp;
+
+    lwt_ref_dec(lwt);//引用--,当为0时销毁
+}
+
 
 void lwt_thread_entry(void* parameter)
 {
@@ -403,7 +435,7 @@ void lwt_thread_entry(void* parameter)
     thread->cleanup = lwt_cleanup;
     //thread->stack_addr = 0;
 
-    lwp_user_entry(lwt->args, lwt->text_entry, lwt->data_entry);
+    lwp_user_entry(lwt->args, lwt->text_entry, lwt->data_entry, 0);
     
 }
 
@@ -419,18 +451,19 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     if (filename == RT_NULL)
         return -RT_ERROR;
 
+    //申请LWT
+
     //把这里换成新建的函数体 类似于c++中的新建一个实例
-    lwt = (struct rt_lwt *)rt_malloc(sizeof(struct rt_lwt));
+    lwt = rt_lwt_new();
+
     
     if (lwt == RT_NULL)
     {
-        dbg_log(DBG_ERROR, "lwt struct out of memory!\n");
         return -RT_ENOMEM;
     }
+
     dbg_log(DBG_INFO, "lwt malloc : %p, size: %d!\n", lwt, sizeof(struct rt_lwt));
 
-    //执行清空内存操作
-    rt_memset(lwt, 0, sizeof(*lwt));
 
     //拷贝入口参数到 lwt->args
     if (lwt_argscopy(lwt, argc, argv) != 0)
@@ -450,14 +483,22 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     //get然后put是为了ref_count不增加
     struct dfs_fd *d = fd_get(fd);
     fd_put(d);
-    fd = fd - DFS_FD_OFFSET;
+    if(d)
+    {
+        fd = fd - DFS_FD_OFFSET;
+        struct dfs_fd **fdt = (struct dfs_fd **)rt_malloc( (fd+1) * sizeof(struct dfs_fd*) );
+        lwt->fdt.fds = fdt;
+        fdt[fd] = d;
+        
+        lwt->fdt.maxfd = fd + 1;
+    }
 
 
     char* name = strrchr(filename, '/');
     rt_thread_t thread = rt_thread_create( name ? name + 1: filename, lwt_thread_entry, NULL, 0x400, 29, 200);
     if(thread == RT_NULL)
     {
-        //
+        LOG_E("lwt_execve create thread error!");
     }
 
     rt_kprintf("LWT kernel stack %p - %p\n", thread->stack_addr, (rt_uint32_t)thread->stack_addr + thread->stack_size);
@@ -478,7 +519,9 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
 
     thread->lwp = lwt;
 
-    lwt->t_grp.next->prev = &thread->sibling;
+    //初始化: t_grp->(prev/next) = self  t_grp相当于head节点
+
+    lwt->t_grp.prev = &thread->sibling;
     thread->sibling.next = lwt->t_grp.next;
     lwt->t_grp.next = &thread->sibling;
     thread->sibling.prev = &lwt->t_grp;
@@ -488,9 +531,13 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     //启动进程
     rt_thread_startup(thread);
 
-_exit:
-
+_success:
+    //引用次数
+    lwt->ref = 1;
     return lwt_get_pid();//lwt_to_pid(lwt)
+
+__fail:
+    return -1;
 
 }
 
@@ -498,9 +545,24 @@ _exit:
 /* 部分测试函数 */
 #include "lwp.h"
 
+void lwt_sub_thread_entry(void* parameter)
+{
+    rt_thread_t thread;
+    struct rt_lwt* lwt;
+
+    thread = rt_thread_self();
+    lwt = thread->lwp;
+    thread->cleanup = lwt_cleanup;
+    //thread->stack_addr = 0;
+
+    lwp_user_entry(parameter, thread->user_entry, lwt->data_entry, thread->user_stack);
+    
+}
+
 rt_thread_t sys_thread_create(const char *name,
                              void (*entry)(void *parameter),
                              void       *parameter,
+                             void       *stack_addr,
                              rt_uint32_t stack_size,
                              rt_uint8_t  priority,
                              rt_uint32_t tick)
@@ -512,13 +574,35 @@ rt_thread_t sys_thread_create(const char *name,
     struct rt_lwt *lwt;
 
     //entry要改成user_entry(即程序运行在用户态)
-    thread = rt_thread_create(name, entry, parameter, stack_size, priority, tick);
+    thread = rt_thread_create(name, lwt_sub_thread_entry, parameter, 0x200, priority, tick);
 
     if(thread != NULL)
     {
         //CleanUp里面写了清Text_entry,所以需要判断引用次数才可以
-        //thread->cleanup = lwt_cleanup;
-        thread->lwp = rt_thread_self()->lwp;
+        thread->cleanup = lwt_cleanup;
+
+        lwt = rt_thread_self()->lwp;
+        thread->lwp = lwt;
+
+        thread->user_entry = entry;
+        thread->user_stack = stack_addr;
+        thread->user_stack_size = stack_size;
+        rt_memset(stack_addr, '#', stack_size);//初始化堆栈
+
+        rt_uint32_t level = rt_hw_interrupt_disable();
+
+
+        //相对关系构造
+        /**
+         * (双向链表)
+         * t_grp | init_sibling(old/first) | other_sibling(old) | create_sibling(new)
+         */
+        //thread_group链表
+        thread->sibling.next = &lwt->t_grp;//t_group_header
+        thread->sibling.prev = lwt->t_grp.prev;//old_tail
+        lwt->t_grp.prev->next = &thread->sibling;
+
+        rt_hw_interrupt_enable(level);
 
     }
 
@@ -533,6 +617,8 @@ rt_err_t sys_thread_startup(rt_thread_t thread)
     {
         //
     }
+
+    lwt_ref_inc(thread->lwp);
 
     return rt_thread_startup(thread);
 }
