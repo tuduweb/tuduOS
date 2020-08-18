@@ -69,11 +69,11 @@ rt_hw_context_switch    PROC
     MOV     r3, #1
     STR     r3, [r2]
 
-    LDR     r2, =rt_interrupt_from_thread   ; set rt_interrupt_from_thread;from_thread->sp
+    LDR     r2, =rt_interrupt_from_thread   ; set rt_interrupt_from_thread;addr to from_thread->sp
     STR     r0, [r2]
 
 _reswitch
-    LDR     r2, =rt_interrupt_to_thread     ; set rt_interrupt_to_thread;to_thread->sp
+    LDR     r2, =rt_interrupt_to_thread     ; set rt_interrupt_to_thread;addr to to_thread->sp
     STR     r1, [r2]
 
     LDR     r0, =NVIC_INT_CTRL              ; trigger the PendSV exception (causes context switch)
@@ -127,15 +127,15 @@ PendSV_Handler   PROC
     STR     r1, [r0]                ; update from thread stack pointer
 
 switch_to_thread
-    LDR     r1, =rt_interrupt_to_thread
-    LDR     r1, [r1]
-    LDR     r1, [r1]                ; load thread stack pointer
+    LDR     r1, =rt_interrupt_to_thread ;R1 point to thread->sp
+    LDR     r1, [r1]                ; 取指针 得到 thread->sp 这玩意的地址,相当于thread偏移0x1c的位置(当前版本)
+    LDR     r1, [r1]                ; load thread stack pointer ;继续取指针,得到的就是当前栈地址
 
     IF      {FPU} != "SoftVFP"
     LDMFD   r1!, {r3}               ; pop flag
     ENDIF
 
-    LDMFD   r1!, {r4 - r11}         ; pop r4 - r11 register
+    LDMFD   r1!, {r4 - r11}         ; pop r4 - r11 register     ;取栈地址的数据
 
     IF      {FPU} != "SoftVFP"
     CMP     r3,  #0                 ; if(flag_r3 != 0)
@@ -224,6 +224,10 @@ rt_hw_interrupt_thread_switch PROC
     EXPORT HardFault_Handler
 HardFault_Handler    PROC
 
+    IMPORT lwp_get_sys_api
+    IMPORT lwt_get_kernel_sp
+    IMPORT rt_thread_exit
+
     ; get current context
     TST     lr, #0x04               ; if(!EXC_RETURN[2]);根据这一bit的数据判断进入中断前的模式
     ITE     EQ
@@ -243,9 +247,53 @@ HardFault_Handler    PROC
 
     PUSH    {lr}
     BL      rt_hw_hard_fault_exception
+
+    ;B       .;下面的函数未完成..本来就有while,这里继续while 
+
+    ;GET SYSCALL Num,THEN GET SYSCALL API entry
+    MOV     R0, #1      ;syscall func = sys_exit
+    BL      lwp_get_sys_api ;(BL will change LR and other)
+    MOV     R2, R0
+    
+    ;GET kernel SP(Thread SP)
+    BL      lwt_get_kernel_sp
+
+    ; get user SP.
+    TST     LR, #0x4
+    ITE     EQ
+    MRSEQ   R1, MSP
+    MRSNE   R1, PSP
+
+    STMFD   R0!,    {R2}   ;save app SP to kernel SP
+    STMFD   R0!,    {R4 - R5}  ;占位
+
+    SUB     R0, #0x20
+
+    
+    STR     R2, [R0, #24]   ;update API to PC;sys_exit
+
+    LDR     R2, =rt_thread_exit
+    STR     R2, [R0, #20]   ;update LR = sys_exit 占位
+
+    MOV     R1, #1
+    STR     R1, [R0, #0]    ;update R0 = #1
+    MOV     R1, #0x01000000     ;PSR 0x01000000
+    STR     R1, [R0, #28]
+    ;MOV     R1, #0
+    ;STR     R1, [R0, #28]
+
+
+    MSR     PSP, R0         ;更新SP
+
+    ; set to thread-privilege mode.
+    MRS     R3, CONTROL
+    BIC     R3, R3, #0x01
+    ORR     R3, R3, #0x02
+    MSR     CONTROL, R3
+
     POP     {lr}
 
-    ORR     lr, lr, #0x04
+    ORR     lr, lr, #0x10
     BX      lr
     ENDP
 
