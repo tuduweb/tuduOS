@@ -354,11 +354,23 @@ syscall_entry   PROC
     ENDP
 
 
+MemManage_Handler PROC
+    EXPORT  MemManage_Handler
+    IMPORT  MemManage_Main
+    
+    PUSH    {LR}
+    BL  MemManage_Main
+    POP     {LR}
 
+    B   .
 
+    ;return
+    ORR     LR, LR, #0x10   ;(1 << 4), clean FPCA.
+    BX      LR
 
+    ;B   .
 
-
+    ENDP
 
 
     ALIGN
