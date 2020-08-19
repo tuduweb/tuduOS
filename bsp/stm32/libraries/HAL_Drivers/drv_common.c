@@ -54,6 +54,17 @@ void SysTick_Handler(void)
 
     /* leave interrupt */
     rt_interrupt_leave();
+
+    //TODO:需要修改的更细致,比如To_thread为LWP时,不需要更换模式
+    if(rt_thread_self()->lwp != NULL)
+    {
+        __asm("MRS     R3, CONTROL");
+        __asm("BIC     R3, R3, #0x01");
+        __asm("ORR     R3, R3, #0x02");
+        __asm("MSR     CONTROL, R3");
+    }
+
+    
 }
 
 uint32_t HAL_GetTick(void)
