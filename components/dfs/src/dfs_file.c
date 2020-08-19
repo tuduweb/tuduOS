@@ -620,7 +620,7 @@ void cat(const char *filename)
 }
 FINSH_FUNCTION_EXPORT(cat, print file);
 
-#define BUF_SZ  4096
+#define BUF_SZ  8192
 static void copyfile(const char *src, const char *dst)
 {
     struct dfs_fd src_fd;
