@@ -179,7 +179,7 @@ static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr
 
 
         //在app里面第9位
-        lwt->data_size = 0x400;//(uint8_t)*(lwt->text_entry + 9);//addr
+        lwt->data_size = *(rt_uint32_t *)(lwt->text_entry + 0x80);//(uint8_t)*(lwt->text_entry + 9);//addr
         //申请数据空间
         //lwt->data_entry = rt_lwt_alloc_user(lwt,lwt->data_size);
         lwt->data_entry = rt_malloc(lwt->data_size);
@@ -564,8 +564,8 @@ rt_thread_t sys_thread_create(const char *name,
                              void       *parameter,
                              void       *stack_addr,
                              rt_uint32_t stack_size,
-                             rt_uint8_t  priority,
-                             rt_uint32_t tick)
+                             rt_uint8_t  priority)
+                             //rt_uint32_t tick
 {
     struct rt_thread *thread = NULL;
     struct rt_lwp *lwp = NULL;
@@ -574,14 +574,16 @@ rt_thread_t sys_thread_create(const char *name,
     struct rt_lwt *lwt;
 
     //entry要改成user_entry(即程序运行在用户态)
-    thread = rt_thread_create(name, lwt_sub_thread_entry, parameter, 0x200, priority, tick);
+    thread = rt_thread_create(name, lwt_sub_thread_entry, parameter, 0x200, priority, 200);
 
     if(thread != NULL)
     {
         //CleanUp里面写了清Text_entry,所以需要判断引用次数才可以
+        
         thread->cleanup = lwt_cleanup;
 
         lwt = rt_thread_self()->lwp;
+
         thread->lwp = lwt;
 
         thread->user_entry = entry;
