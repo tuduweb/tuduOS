@@ -58,7 +58,7 @@ extern struct fal_flash_dev nor_flash0;
 #define FAL_PART_TABLE                                                                                                     \
 {                                                                                                                          \
     {FAL_PART_MAGIC_WROD, "bootloader", "onchip_flash_16k",  0 , FLASH_SIZE_GRANULARITY_16K , 0}, \
-    {FAL_PART_MAGIC_WROD, "param",      "onchip_flash_64k",  0 , FLASH_SIZE_GRANULARITY_64K , 0}, \
+    {FAL_PART_MAGIC_WROD, "sys",      "onchip_flash_64k",  0 , FLASH_SIZE_GRANULARITY_64K , 0}, \
     {FAL_PART_MAGIC_WROD, "onchip",        "onchip_flash_128k", 0 , FLASH_SIZE_GRANULARITY_128K, 0}, \
     {FAL_PART_MAGIC_WROD, "exchip0", "exchip_flash",  0 , 8 * 1024 * 1024 , 0}, \
     {FAL_PART_MAGIC_WROD, "ef", "exchip_flash",  8 * 1024 * 1024 , 8 * 1024 * 1024 , 0}, \
