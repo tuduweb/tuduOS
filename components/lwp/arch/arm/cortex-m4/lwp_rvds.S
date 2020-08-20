@@ -56,6 +56,7 @@ lwp_user_entry    PROC
     PUSH    {R0-R3,LR}             ; push text&data addr.; ADD LR
 
     MOV     R0, SP              ; v1 = SP
+    ADD     R0, #0x14           ;上面PUSH了5个变量,一共0x14,向右偏移0x14
     BL      lwt_set_kernel_sp   ; lwp_set_kernel_sp(v1) ;sp寄存器指向stack,保存当前(kernel)SP的值
 
     POP     {R0-R3,LR}             ; pop app address to R1.;ADD LR
@@ -63,16 +64,19 @@ lwp_user_entry    PROC
     MOV     R9, R2              ;R9 偏址寄存器=data_entry(lwt)
 
     ; 判断user_stack是否为0
+    ; 在App中是有初始化堆栈函数的,这里的SP作为临时使用,如果没有BUG可以用kernel_thread中的SP
+    ; 在App产生的进程里,没有初始化stack的函数,这里需要直接改变SP
     CMP     R3, #0
-    ; 不为0则改变SP
+    ; 不为0则直接改变SP
     MOVNE   SP, R3
-    ADD     R2, #0x100            ;影响..?
-    MOVEQ   SP, R2
+    ;ADD     R2, #0x100            ;影响..?;初步构造entry时,会用到PSP值,临时值,一次性的
+    ;MOVEQ   SP, R2
 
     LDR     R2, =lwt_thread_return
     MOV     LR, R2
 
     ; run app, only Thumb-mode.
+    ; 下面的参数会在SVC_Handler中被调用
     ORR     R1, R1, #0x01       ;指令模式的最后一位需要处理一下(32位指令集) ;   R1 = text_entry
     ORR     LR, LR, #0x01       ;LR=kernel_nextPC
     
@@ -249,7 +253,7 @@ SVC_1
     ;B       userApp_entry
 
     LDR     R0, [R1, #4]    ;PSP#4 = R1 (PSP[0x20]保存了硬件压栈信息,#4即为R1) R1保存了entry地址
-    STR     R0, [R1, #0x18] ;PSP#0x18 = PC
+    STR     R0, [R1, #0x18] ;PSP#0x18 = PC , PC=R0  ;   LR = lwt_thread_return
     MOV     R0, #0x03       ;CONTROL值
     MSR     CONTROL, R0     ;0x03为 Thread-unprivilege模式
 
