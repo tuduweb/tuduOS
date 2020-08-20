@@ -34,7 +34,7 @@ int MPU_Set_Protection(rt_uint32_t baseaddr, rt_uint32_t size, rt_uint32_t rnum,
 static int MPU_Init(void)
 {
 
-    MPU_Set_Protection(0x60000000,MPU_REGION_SIZE_64MB,MPU_REGION_NUMBER0,MPU_REGION_NO_ACCESS);
+    //MPU_Set_Protection(0x60000000,MPU_REGION_SIZE_64MB,MPU_REGION_NUMBER0,MPU_REGION_NO_ACCESS);
     return 0;
 }
 INIT_APP_EXPORT(MPU_Init);
@@ -115,4 +115,23 @@ void MemManage_Main(void)
 
     rt_kprintf("memProtect\r\n");
 
+}
+
+/**
+ * https://www.keil.com/pack/doc/cmsis/Core/html/group__mpu__functions.html
+ */
+void bin_lwt_mpu_switch(rt_thread_t from, rt_thread_t to)
+{
+    //HAL_MPU_Disable();
+
+    if(to->lwp != NULL)
+    {
+        //MPU_switch
+    }else if(1)
+    {
+        //clean
+    }
+
+
+    //HAL_MPU_Enable();
 }
