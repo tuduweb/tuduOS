@@ -9,17 +9,19 @@ static void syscall_app_entry(void *parameter)
 		//lwp_save_sp(1);
     //lwp_save_sp();
 		rt_thread_t thread = rt_thread_self();
-    rt_kprintf("syscall APP test begin\n");
-    char txt[] = "syscall\n";
-		__asm("SVC #2");
+    //rt_kprintf("syscall APP test begin\n");
+    //char txt[] = "syscall\n";
+		//__asm("SVC #2");
     //syscall(0xff, txt, sizeof(txt));
     //syscall(1,1);
-    rt_kprintf("syscall APP test end\n");
+    //rt_kprintf("syscall APP test end\n");
     // while(1)
     // {
     //   rt_kprintf("App on\n");
     //   rt_thread_mdelay(2000);
     // }
+    rt_uint32_t* pointer = (rt_uint32_t*)0x60000008;
+    *pointer = 123;
 }
 
 

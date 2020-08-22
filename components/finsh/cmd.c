@@ -239,7 +239,7 @@ long list_thread(void)
 #else
                     ptr = (rt_uint8_t *)thread->stack_addr;
                     while (*ptr == '#')ptr ++;
-
+                    //stack_addr,sp在LWP线程中不匹配
                     rt_kprintf(" 0x%08x 0x%08x    %02d%%   0x%08x %03d\n",
                             thread->stack_size + ((rt_ubase_t)thread->stack_addr - (rt_ubase_t)thread->sp),
                             thread->stack_size,
