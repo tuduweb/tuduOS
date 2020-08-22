@@ -422,6 +422,13 @@ void rt_hw_hard_fault_exception(struct exception_info *exception_info)
     hard_fault_track();
 #endif /* RT_USING_FINSH */
 
+    /* 如果是LWT线程,那么销毁线程,回到正常状态下 */
+    rt_thread_t thread = rt_thread_self();
+    if(thread->lwp != NULL)
+    {
+        rt_kprintf("Current LWT thread!\r\n");
+        return;
+    }
     while (1);
 }
 
