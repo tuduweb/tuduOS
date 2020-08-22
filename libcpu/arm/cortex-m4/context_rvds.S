@@ -149,14 +149,20 @@ switch_to_thread
     CMP     r3,  #0                 ; if(flag_r3 != 0)
     BICNE   lr, lr, #0x10           ; lr &= ~(1 << 4), set FPCA.
     ENDIF
-    ;mpu
+    ;mpu switch
 
 pendsv_exit
     ; restore interrupt
     MSR     PRIMASK, r2
-    ;MSR     R1, CONTROL
-    ;TST     R1,#1  ;CONTROL[1] 为0表示选择MSP，为1表示选择PSP  ;TST 判断该为是否为0 为0则Z=1
-    ;BNE    ret_to_user ;Z!=0时执行  即MSP时执行
+    MRS     r1, CONTROL
+    TST     r1,#1   ;CONTROL[1] 为0表示选择MSP，为1表示选择PSP  ; CONTROL[0]：为0表示特权级的线程模式，为1表示用户级的线程模式; TST 判断该位是否为0 为0则Z=1
+                    ;作用,判断现在的运行状态
+    BNE     ret_to_user ;Z!=0时执行  即MSP时执行
+    
+    ORR     lr, lr, #0x04;TO PSP MODE
+    BX      lr
+
+ret_to_user ;返回用户线程需要进行signal处理,在这里预留出来。
     ORR     lr, lr, #0x04;TO PSP MODE
     BX      lr
     ENDP
@@ -248,7 +254,7 @@ HardFault_Handler    PROC
     PUSH    {lr}
     BL      rt_hw_hard_fault_exception
 
-    ;B       .;下面的函数未完成..本来就有while,这里继续while 
+    B       .;下面的函数未完成..本来就有while,这里继续while 
 
     ;GET SYSCALL Num,THEN GET SYSCALL API entry
     MOV     R0, #1      ;syscall func = sys_exit
