@@ -29,16 +29,16 @@ void lwt_set_kernel_sp(uint32_t *sp)
     rt_thread_t thread = rt_thread_self();
     struct rt_lwt *user_data;
     user_data = (struct rt_lwt *)rt_thread_self()->lwp;
-    user_data->kernel_sp = sp;
+    thread->kernel_sp = sp;
     //kernel_sp = sp;
 }
 
 uint32_t *lwt_get_kernel_sp(void)
 {
+    rt_thread_t thread = rt_thread_self();
     struct rt_lwt *user_data;
     user_data = (struct rt_lwt *)rt_thread_self()->lwp;
-    //return kernel_sp;
-    return user_data->kernel_sp;
+    return thread->kernel_sp;
 }
 
 /**
@@ -145,12 +145,12 @@ static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr
 
         //lwp->text_size = RT_ALIGN(chunk.data_len_space, 4);
         lwt->text_size = RT_ALIGN(env.value_len, 4);
-        rt_uint8_t * new_entry = (rt_uint8_t *)rt_malloc( lwt->text_size );//RT_MALLOC_ALGIN
-        rt_uint8_t * align_entry = (rt_uint8_t *)RT_ALIGN((int)new_entry, 4);
+        //rt_uint8_t * text_entry = (rt_uint8_t *)rt_malloc( lwt->text_size );//RT_MALLOC_ALGIN
+        rt_uint8_t * text_entry = (rt_uint8_t *)rt_malloc_align( lwt->text_size , 8);//RT_MALLOC_ALGIN
 
         //new_entry = RT_ALIGN(new_entry);
 
-        if (new_entry == RT_NULL)
+        if (text_entry == RT_NULL)
         {
             dbg_log(DBG_ERROR, "alloc text memory faild!\n");
             result = -RT_ENOMEM;
@@ -158,13 +158,13 @@ static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr
         }
         else
         {
-            dbg_log(DBG_LOG, "lwp text malloc : %p, size: %d!\n", align_entry, lwt->text_size);
+            dbg_log(DBG_LOG, "lwp text malloc : %p, size: %d!\n", text_entry, lwt->text_size);
         }
 
-        rt_kprintf("lwp text malloc : %p, size: %d!\n", align_entry, lwt->text_size);
+        rt_kprintf("lwp text malloc : %p, size: %d!\n", text_entry, lwt->text_size);
 
         //复制内容
-        int nbytes = read(fd, align_entry, lwt->text_size);
+        int nbytes = read(fd, text_entry, lwt->text_size);
 
         if(nbytes != lwt->text_size)
         {
@@ -172,7 +172,7 @@ static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr
             goto _exit;
         }
 
-        lwt->text_entry = align_entry;
+        lwt->text_entry = text_entry;
 
 
         
@@ -185,6 +185,7 @@ static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr
         lwt->data_entry = rt_malloc(lwt->data_size);
         if (lwt->data_entry == RT_NULL)
         {
+            rt_free_align(text_entry);//释放text
             dbg_log(DBG_ERROR, "alloc data memory faild!\n");
             result = -RT_ENOMEM;
             goto _exit;
@@ -236,16 +237,26 @@ struct rt_lwt *rt_lwt_self(void)
     return tid->lwp;
 }
 
+
 struct rt_lwt *rt_lwt_new(void)
 {
     struct rt_lwt *lwt = RT_NULL;
     //关闭中断 主要是MPU保护这一块
     rt_uint32_t level = rt_hw_interrupt_disable();
 
-    //在pidmap中找一个空闲的位置,如果不存在空闲位置,则满
+    //在pidmap中找一个空闲的位置,如果不存在空闲位置,则满；限制条件,为空,小于lastpid
+    int pid = 0;
+    for(; pid < lwt_pid.lastpid && lwt_pid.pidmap[pid]; ++pid);
+    //超出最大值,当前LWT线程太多了
+    if(pid >= LWT_PIDMAP_SIZE)
+    {
+        LOG_I("PID MAP full!");
+        lwt_pid.lastpid = 0;
+        goto _exit;
+    }
 
-    
-    //如果能找到位置 那么申请变量,初始化参量
+    lwt_pid.lastpid = pid + 1;
+
     lwt = (struct rt_lwt *)rt_malloc(sizeof(struct rt_lwt));
 
     if(lwt == RT_NULL)
@@ -267,13 +278,13 @@ struct rt_lwt *rt_lwt_new(void)
         lwt->ref = 1;//引用次数
 
         //lwt->pid = //申请到的pid map中的位置(下标)
-        
-
+        lwt->pid = pid;
         //把这个lwt结构体放入 pid_map相应下标形成映射关系
+        lwt_pid.pidmap[pid] = lwt;
     }
 
 
-
+_exit:
     //重新开启保护
     rt_hw_interrupt_enable(level);
 
@@ -284,6 +295,35 @@ int rt_lwt_free(struct rt_lwt *lwt)
 {
     if(lwt)
     {
+
+        if (lwt->lwt_type == LWP_TYPE_DYN_ADDR)
+        {
+            dbg_log(DBG_INFO, "dynamic lwp\n");
+            if (lwt->text_entry)
+            {
+                dbg_log(DBG_LOG, "lwp text free: %p\n", lwt->text_entry);
+    #ifdef RT_USING_CACHE
+                rt_free_align(lwt->text_entry);
+    #else
+                rt_free_align(lwt->text_entry);
+    #endif
+            }
+
+            //rt_free(lwt);
+
+        }
+
+        if (lwt->data_entry)
+        {
+                dbg_log(DBG_LOG, "lwp data free: %p\n", lwt->data_entry);
+                rt_free(lwt->data_entry);
+        }
+
+        if(lwt->args)
+        {
+            rt_free(lwt->args);
+        }
+
         rt_free(lwt->fdt.fds);
         rt_free(lwt);
     }
@@ -350,21 +390,20 @@ char* lwt_get_name_from_pid(pid_t pid)
 pid_t lwt_get_pid_from_name(char *name)
 {
     //在pid_map中进行查找操作..
-    for(int i = 0; i < LWP_PIDMAP_SIZE; ++i)
+    for(int i = 0; i < LWT_PIDMAP_SIZE; ++i)
     {
         //
     }
     return -RT_ERROR;
 }
 
-pid_t lwt_get_pid(void)
+pid_t lwt_get_pid(struct rt_lwt *lwt)
 {
-    struct rt_lwt *lwt;
     if(lwt)
     {
-        return 1;//rt_thread_self()->lwp->pid;
+        return lwt->pid;
     }
-    return 0;
+    return -RT_ERROR;
 }
 
 //lwt主线程的cleanup程序
@@ -376,40 +415,8 @@ void lwt_cleanup(rt_thread_t tid)
 
     lwt = (struct rt_lwt *)tid->lwp;
 
-    if (lwt->lwt_type == LWP_TYPE_DYN_ADDR)
-    {
-        dbg_log(DBG_INFO, "dynamic lwp\n");
-        if (lwt->text_entry)
-        {
-            dbg_log(DBG_LOG, "lwp text free: %p\n", lwt->text_entry);
-#ifdef RT_USING_CACHE
-            rt_free_align(lwt->text_entry);
-#else
-            rt_free(lwt->text_entry);
-#endif
-        }
-
-        //rt_free(lwt);
-
-    }
-
-    if (lwt->data_entry)
-    {
-            dbg_log(DBG_LOG, "lwp data free: %p\n", lwt->data_entry);
-            rt_free(lwt->data_entry);
-    }
-
-    if(lwt->args)
-    {
-        rt_free(lwt->args);
-    }
-
     lwt_ref_dec(lwt);//引用--,当为0时销毁
 
-    //rt_free(lwt);
-
-
-    //还需要清 LWT
 }
 
 //lwt子线程临时cleanup程序
@@ -468,14 +475,19 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     //拷贝入口参数到 lwt->args
     if (lwt_argscopy(lwt, argc, argv) != 0)
     {
+        //没清理干净
         rt_free(lwt);
-        return -ENOMEM;
+        goto __fail;
+        //return -ENOMEM;
     }
 
     //为lwt构建空间
     if(lwt_load(filename, lwt, 0, 0) != RT_EOK)
     {
-        return -RT_ERROR;
+        //其实需要cleanup
+        rt_free(lwt);
+        goto __fail;
+        //return -RT_ERROR;
     }
 
     //构建线程FD表
@@ -495,10 +507,11 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
 
 
     char* name = strrchr(filename, '/');
-    rt_thread_t thread = rt_thread_create( name ? name + 1: filename, lwt_thread_entry, NULL, 0x400, 29, 200);
+    rt_thread_t thread = rt_thread_create( name ? name + 1: filename, lwt_thread_entry, NULL, 0x200, 29, 200);
     if(thread == RT_NULL)
     {
         LOG_E("lwt_execve create thread error!");
+        goto __fail;
     }
 
     rt_kprintf("LWT kernel stack %p - %p\n", thread->stack_addr, (rt_uint32_t)thread->stack_addr + thread->stack_size);
@@ -534,10 +547,10 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
 _success:
     //引用次数
     lwt->ref = 1;
-    return lwt_get_pid();//lwt_to_pid(lwt)
+    return lwt_get_pid(lwt);//lwt_to_pid(lwt)
 
 __fail:
-    return -1;
+    return -RT_ERROR;
 
 }
 
@@ -552,10 +565,14 @@ void lwt_sub_thread_entry(void* parameter)
 
     thread = rt_thread_self();
     lwt = thread->lwp;
-    thread->cleanup = lwt_cleanup;
+    thread->cleanup = lwt_son_cleanup;
     //thread->stack_addr = 0;
 
-    lwp_user_entry(parameter, thread->user_entry, lwt->data_entry, thread->user_stack);
+    //仿照thread构造stack
+    rt_uint8_t* stack_base = (char *)thread->user_stack + thread->user_stack_size - sizeof(rt_ubase_t) +  + sizeof(rt_uint32_t);
+    stack_base = (rt_uint8_t *)RT_ALIGN_DOWN((rt_uint32_t)stack_base, 8);
+
+    lwp_user_entry(parameter, thread->user_entry, lwt->data_entry, stack_base);
     
 }
 
@@ -591,6 +608,10 @@ rt_thread_t sys_thread_create(const char *name,
         thread->user_stack_size = stack_size;
         rt_memset(stack_addr, '#', stack_size);//初始化堆栈
 
+        rt_kprintf("LWT %s kernel stack %p - %p\n", thread->name, thread->stack_addr, (rt_uint32_t)thread->stack_addr + thread->stack_size);
+        rt_kprintf("LWT %s app stack %p - %p\n", thread->name, thread->user_stack, (rt_uint32_t)thread->user_stack + thread->user_stack_size);
+
+
         rt_uint32_t level = rt_hw_interrupt_disable();
 
 
@@ -624,3 +645,21 @@ rt_err_t sys_thread_startup(rt_thread_t thread)
 
     return rt_thread_startup(thread);
 }
+
+long list_lwt(void)
+{
+    const char *item_title = "thread";
+    struct rt_lwt* lwt = RT_NULL;
+    int maxlen = RT_NAME_MAX;
+    rt_kprintf("%-*.s      cmd    suspend thread  pid\n", maxlen, item_title);
+    rt_kprintf(     "  ---------- -------------- -----\n");
+
+    for(int pid = 0; pid < lwt_pid.lastpid; pid++)
+    {
+        lwt = lwt_pid.pidmap[pid];
+        rt_kprintf(     "%s %d\n",lwt->cmd, pid);
+    }
+    return 0;
+}
+FINSH_FUNCTION_EXPORT_ALIAS(list_lwt, __cmd_showlwt, Show lwt.);
+
