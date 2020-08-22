@@ -628,6 +628,7 @@ struct rt_thread
     void        *user_entry;
     void        *user_stack;
     rt_uint32_t user_stack_size;
+    rt_uint32_t *kernel_sp;                                /**< kernel stack point */
 
 };
 typedef struct rt_thread *rt_thread_t;

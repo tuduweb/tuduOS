@@ -37,7 +37,6 @@ struct rt_lwt
     uint8_t *data_entry;
     uint32_t data_size;
 
-    uint32_t *kernel_sp;                                /**< kernel stack point */
     struct dfs_fdtable fdt;
     void *args;
     int ref;
@@ -73,10 +72,10 @@ struct lwt_chunk
     uint32_t data_len_space;
 };
 
-#define LWP_PIDMAP_SIZE 30
+#define LWT_PIDMAP_SIZE 10
 struct lwt_pidmap
 {
-    struct rt_lwt *pidmap[LWP_PIDMAP_SIZE];
+    struct rt_lwt *pidmap[LWT_PIDMAP_SIZE];
     pid_t lastpid;
 };
 
