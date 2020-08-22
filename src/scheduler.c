@@ -81,7 +81,7 @@ rt_scheduler_sethook(void (*hook)(struct rt_thread *from, struct rt_thread *to))
 static void _rt_scheduler_stack_check(struct rt_thread *thread)
 {
     RT_ASSERT(thread != RT_NULL);
-
+return;
 #if defined(ARCH_CPU_STACK_GROWS_UPWARD)
     if (*((rt_uint8_t *)((rt_ubase_t)thread->stack_addr + thread->stack_size - 1)) != '#' ||
 #else
