@@ -358,7 +358,8 @@ void lwt_ref_dec(struct rt_lwt *lwt)
                 close(lwt->fdt.maxfd - 1);//注意不能销毁uart,否则shell失效
             }
             //数据删除
-
+            lwt->pid;
+            lwt_pid.pidmap[lwt->pid] = NULL;
             //销毁旗下所有没启动的thread,没启动的thread不会自动退出?
             //启动的也要删除吧
 
@@ -656,7 +657,8 @@ long list_lwt(void)
 
     for(int pid = 0; pid < lwt_pid.lastpid; pid++)
     {
-        lwt = lwt_pid.pidmap[pid];
+        if((lwt = lwt_pid.pidmap[pid]) == NULL)
+            continue;
         rt_kprintf(     "%s %d\n",lwt->cmd, pid);
     }
     return 0;
