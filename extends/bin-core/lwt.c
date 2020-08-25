@@ -372,6 +372,11 @@ void lwt_ref_dec(struct rt_lwt *lwt)
     rt_hw_interrupt_enable(level);
 }
 
+struct rt_lwt * lwt_get_lwt_from_pid(pid_t pid)
+{
+    return lwt_pid.pidmap[pid];
+}
+
 char* lwt_get_name_from_pid(pid_t pid)
 {
     struct rt_lwt *lwt;
@@ -624,7 +629,7 @@ rt_thread_t sys_thread_create(const char *name,
         //thread_group链表
         thread->sibling.next = &lwt->t_grp;//t_group_header
         thread->sibling.prev = lwt->t_grp.prev;//old_tail
-        lwt->t_grp.prev->next = &thread->sibling;
+        lwt->t_grp.prev->next = &thread->sibling;//中间插入
 
         rt_hw_interrupt_enable(level);
 
