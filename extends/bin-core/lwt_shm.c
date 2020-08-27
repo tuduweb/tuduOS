@@ -7,6 +7,23 @@
 
 struct _lwt_shm lwt_shm;
 #define LWT_SHM_SIZE 0x4000
+
+rt_err_t bmem_create(void* start,rt_uint32_t size)
+{
+    return RT_EOK;
+}
+
+void *bmem_alloc(rt_uint32_t size)
+{
+    return 0;
+}
+
+rt_err_t bmem_free(void* addr)
+{
+    return RT_EOK;
+}
+
+
 rt_err_t lwt_shm_init()
 {
     rt_base_t* shm = RT_KERNEL_MALLOC(LWT_SHM_SIZE);
@@ -28,3 +45,12 @@ void *lwt_shm_alloc(int size)
     return 0;
 }
 
+void *lwt_shm_retain(void* addr)
+{
+    return 0;
+}
+
+rt_err_t lwt_shm_free(void* addr)
+{
+    return RT_EOK;
+}
