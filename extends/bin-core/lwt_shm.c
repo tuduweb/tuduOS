@@ -62,6 +62,45 @@ struct bmem_block* get_mem_block(struct bmem_typedef* bmem)
     //return RT_NULL;
 }
 
+rt_err_t put_mem_block(struct bmem_typedef* bmem, struct bmem_block* block)
+{
+    struct bmem_tab* bmem_tab;
+    struct bmem_block* bmem_block;
+    int tab_num = 0;
+
+    /* 遍历 tab_head,寻找当前的block */
+    /* bmem->tab_head是普通节点rt_list_t型,其他的为数据节点bmem_block型 */
+    for(bmem_tab = (struct bmem_tab*)bmem->tab_head.next; bmem_tab != (struct bmem_tab*)&bmem->tab_head; bmem_tab = (struct bmem_tab*)bmem_tab->node.next)
+    {
+        for(tab_num = 0; tab_num < BLOCK_TAB_SIZE; tab_num++)
+        {
+            //bmem_block = bmem_tab->tab + tab_num;
+
+            /* 如果找到了 */
+            if(bmem_block->is_used != 0 && (bmem_tab->tab + tab_num == block))
+            {
+                //block->len = 0;
+                block->is_used = 0;
+                bmem_tab->used_num--;
+
+                //tab空闲,则删除
+                if(bmem_tab->used_num == 0)
+                {
+                    rt_list_remove(&bmem_tab->node);//从tab_head中移除
+                    rt_free(bmem_tab);
+                }
+
+                return RT_EOK;
+
+            }
+            
+        }
+
+    }
+
+    return -RT_ERROR;
+}
+
 struct bmem_typedef* bmem_create(rt_uint32_t start, rt_uint32_t size)
 {
     struct bmem_typedef* bmem;
@@ -161,12 +200,37 @@ void *bmem_malloc(struct bmem_typedef* bmem, rt_uint32_t size)
     return RT_NULL;
 }
 
-rt_err_t bmem_free(void* addr)
+rt_err_t bmem_free(struct bmem_typedef* bmem, void* addr)
 {
-    return RT_EOK;
+    struct bmem_block* bmem_block;
+    rt_uint32_t mem_offset = 0;
+
+    for(bmem_block = (struct bmem_block*)bmem->block_node.next;
+        bmem_block != (struct bmem_block*)&bmem->block_node;
+        bmem_block = (struct bmem_block*)bmem_block->node.next)
+    {
+        if(addr < (void *)&(bmem->start[mem_offset]))
+        {
+            LOG_E("bmem_free error! %x", addr);
+        }else if(addr == (void *)&(bmem->start[mem_offset]))
+        {
+            put_mem_block(bmem, bmem_block);
+            rt_list_remove((rt_list_t *)bmem_block);
+            /* 找到了这块bmem */
+            //put
+            return RT_EOK;
+        }
+        
+
+        mem_offset += bmem_block->len;
+    }
+
+    /* 在bmem_block中寻找 addr 块 */
+    return -RT_ERROR;
 }
-
-
+#define MALLOC_TAB_SIZE 20
+rt_uint32_t malloc_addr_tab[MALLOC_TAB_SIZE];
+int malloc_pos = 0;
 int lwt_shm_init()
 {
     rt_uint32_t shm = (rt_uint32_t)RT_KERNEL_MALLOC(LWT_SHM_SIZE);
@@ -188,6 +252,8 @@ int lwt_shm_init()
     lwt_shm.app.next = &lwt_shm.app;
     lwt_shm.relation.prev = &lwt_shm.relation;
     lwt_shm.relation.next = &lwt_shm.relation;
+
+    rt_memset(malloc_addr_tab, 0, sizeof(malloc_addr_tab));
     
     return RT_EOK;
 }
@@ -209,11 +275,30 @@ rt_err_t lwt_shm_free(void* addr)
     return RT_EOK;
 }
 
-void malloc_test(int argc,char* argv[])
+void shm_malloc_test(int argc,char* argv[])
 {
     rt_uint32_t addr = 0;
     addr = (rt_uint32_t)bmem_malloc(lwt_shm.bmem, 100);
-    rt_kprintf("addr:%x\r\n", addr);
+    if(addr && malloc_pos < MALLOC_TAB_SIZE)
+    {
+        malloc_addr_tab[malloc_pos++] = addr;
+    }
+    rt_kprintf("shm malloc addr:%x\r\n", addr);
 }
-MSH_CMD_EXPORT(malloc_test,malloc!);
+MSH_CMD_EXPORT(shm_malloc_test, malloc!);
+
+void shm_free_test(int argc,char* argv[])
+{
+    if(malloc_pos > 0)
+    {
+        if(bmem_free(lwt_shm.bmem, (void *)malloc_addr_tab[malloc_pos - 1]) == RT_EOK)
+        {
+            rt_kprintf("shm free addr:%x\r\n", malloc_addr_tab[malloc_pos - 1]);
+            malloc_pos--;
+        }
+    }else{
+        rt_kprintf("malloc_pos = 0\r\n");
+    }
+}
+MSH_CMD_EXPORT(shm_free_test, free!);
 
