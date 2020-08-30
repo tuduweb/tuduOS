@@ -30,11 +30,20 @@ struct bmem_typedef
     rt_list_t   block_node;
 };
 
+
+
 struct shm_mem
 {
     rt_list_t   app_node;
     rt_uint32_t addr;
     rt_uint32_t size;
+};
+#define SHM_MEM_TAB_SIZE 8
+struct shm_mem_tab
+{
+    rt_list_t node;
+    rt_uint32_t used_num;
+    struct shm_mem tab[SHM_MEM_TAB_SIZE];
 };
 
 struct shm_mem_ref
@@ -52,12 +61,28 @@ struct shm_app
     rt_uint16_t use_num;
 };
 
+#define SHM_APP_TAB_SIZE 8
+struct shm_app_tab
+{
+    rt_list_t node;
+    rt_uint32_t used_num;
+    struct shm_app tab[SHM_APP_TAB_SIZE];
+};
+
 struct shm_relation
 {
-    struct shm_app  app;
+    struct shm_app  *app;
     rt_list_t       app_node;
-    struct shm_mem  mem;
+    struct shm_mem  *mem;
     rt_list_t       mem_node;
+};
+
+#define SHM_RELATION_TAB_SIZE 8
+struct shm_relation_tab
+{
+    rt_list_t node;
+    rt_uint32_t used_num;
+    struct shm_relation tab[SHM_RELATION_TAB_SIZE];
 };
 
 struct _lwt_shm
@@ -67,13 +92,14 @@ struct _lwt_shm
     rt_uint32_t shm_size;
 
 
-    struct shm_relation *relation_tab;
-    struct shm_app      *app_tab;
-    struct shm_mem      *mem_tab;
+    //struct shm_relation *relation_tabs;
+    //struct shm_app      *app_tabs;
+    //struct shm_mem      *mem_tabs;
 
-    rt_list_t   relation;
-    rt_list_t   app;
-    rt_list_t   mem;
+    //指向三种tab的node节点
+    rt_list_t   relation_tab;
+    rt_list_t   app_tab;
+    rt_list_t   mem_tab;
 
     //lock
 
