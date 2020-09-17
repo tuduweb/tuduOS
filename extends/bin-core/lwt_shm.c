@@ -651,6 +651,8 @@ rt_err_t lwt_shm_retain(void* addr)
                 relation->app = app;
                 relation->mem = mem;
 
+                app->use_num++;//引用次数增加
+
                 rt_list_insert_after(&mem->app_node, &relation->app_node);
                 rt_list_insert_after(&app->mem_node, &relation->mem_node);
             }else{
