@@ -61,7 +61,7 @@ static int lwt_argscopy(struct rt_lwt *lwt, int argc, char **argv)
 
     args = (int*)rt_malloc(size);
     if (args == RT_NULL)
-        return -1;
+        return -RT_ERROR;
 
     str = (char*)((int)args + (argc + 3) * sizeof(int));
     new_argv = (char**)&args[2];
