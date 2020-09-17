@@ -400,6 +400,9 @@ struct shm_mem* get_shm_mem(lwt_shm_t lwt_shm)
                 if(mem_item->size == 0)
                 {
                     mem_tab_item->used_num++;
+                    
+                    mem_item->app_node.prev = &mem_item->app_node;
+                    mem_item->app_node.next = &mem_item->app_node;
                     return mem_item;
                 }
             }
