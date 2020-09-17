@@ -664,13 +664,13 @@ rt_err_t lwt_shm_retain(void* addr)
             
             return RT_EOK;
         }else{
-            LOG_E("cant alloc mem_ref:%x", addr);
+            LOG_E("cant alloc mem_ref / %x", addr);
             while(1);
         }
         
         /* find mem_ref */
     }else{
-        LOG_E("dont find this shm_mem:%x", addr);
+        LOG_E("dont find this shm_mem / %x", addr);
         while(1);
     }
     
