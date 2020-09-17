@@ -13,6 +13,12 @@
 struct _lwt_shm lwt_shm;
 #define LWT_SHM_SIZE 0x4000
 
+#define struct_offset(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+
+//#define get_relation_app(ADDR)  ((struct shm_app*)(ADDR - struct_offset(struct shm_relation, app_node) + struct_offset(struct shm_relation, app) ))
+//#define get_relation_mem(ADDR)  ((struct shm_mem*)(ADDR - struct_offset(struct shm_relation, mem_node) + struct_offset(struct shm_relation, mem) ))
+#define get_relation_app(ADDR)  (*(struct shm_app**)(ADDR - sizeof(rt_base_t) ))
+#define get_relation_mem(ADDR)  (*(struct shm_mem**)(ADDR - sizeof(rt_base_t) ))
 
 struct bmem_block* get_mem_block(struct bmem_typedef* bmem)
 {
@@ -731,3 +737,95 @@ void sys_alloc_test(int argc,char* argv[])
 }
 MSH_CMD_EXPORT(sys_alloc_test, alloc!);
 
+void print_shm_app(lwt_shm_t lwt_shm, void *app)
+{
+    struct shm_app_tab* app_tab_item;
+    struct shm_app* app_item;
+
+    rt_kprintf("lwt_addr\tusn\tnode\r\n");
+
+
+    if(app == RT_NULL)
+    {
+        //list all
+        
+        for(app_tab_item = (struct shm_app_tab *)lwt_shm->app_tab.next;
+            (rt_list_t *)app_tab_item != &lwt_shm->app_tab;
+            app_tab_item = (struct shm_app_tab *)app_tab_item->node.next)
+        {
+
+            for(int i = 0;i < SHM_APP_TAB_SIZE; i++)
+            {
+                app_item = app_tab_item->tab + i;
+                if(app_item->use_num != 0)
+                {
+                    rt_kprintf("%x\t%d\t%x \r\n", app_item->lwp_addr, app_item->use_num, app_item->mem_node);
+                    //struct rt_list_node* list_node;
+                    //APP下内存
+                    int pos = 0;
+                    for(struct rt_list_node* list_node = app_item->mem_node.next; list_node != &app_item->mem_node; list_node = list_node->next)
+                    {
+                        //struct shm_mem* mem_item = get_relation_mem(list_node);
+                        struct shm_relation* relation = (struct shm_relation*)((rt_base_t)list_node - struct_offset(struct shm_relation, mem_node));
+                        struct shm_mem* mem_item2 = relation->mem;//(struct shm_mem*)((rt_base_t)list_node - sizeof(struct shm_mem *));
+                        struct shm_mem* mem_item = *(struct shm_mem**)((rt_base_t)list_node - sizeof(struct shm_mem *));//在计算出的地址处,取值,得到的是指针!所以计算处的类型为**
+                        rt_kprintf("[%d]\t%x\t%d\t%x \r\n", pos++, mem_item->addr, mem_item->size, mem_item2->addr);
+                    }               
+                
+                }
+            }
+        }
+    }
+}
+
+void msh_print_shm_app(int argc,char* argv[])
+{
+    print_shm_app(&lwt_shm, 0);
+}
+FINSH_FUNCTION_EXPORT_ALIAS(msh_print_shm_app, __cmd_list_shm_app, LIST shm app.);
+
+
+void print_shm_mem(lwt_shm_t lwt_shm, void *mem)
+{
+    struct shm_mem_tab* mem_tab_item;
+    struct shm_mem* mem_item;
+
+    rt_kprintf("mem_addr\tsize\tnode\r\n");
+
+    if(mem == RT_NULL)
+    {
+
+        for(mem_tab_item = (struct shm_mem_tab *)lwt_shm->mem_tab.next;
+            (rt_list_t *)mem_tab_item != &lwt_shm->mem_tab;
+            mem_tab_item = (struct shm_mem_tab *)mem_tab_item->node.next)
+        {
+            if(mem_tab_item->used_num == 0)
+                continue;
+            
+            for(int i = 0;i < SHM_APP_TAB_SIZE; i++)
+            {
+                mem_item = mem_tab_item->tab + i;
+                if(mem_item->addr != RT_NULL)
+                {
+                    rt_kprintf("%x\t%d\t%x \r\n", mem_item->addr, mem_item->size, mem_item->app_node);
+
+                    
+                    //内存下app
+                    int pos = 0;
+                    for(struct rt_list_node* list_node = mem_item->app_node.next; list_node != &mem_item->app_node; list_node = list_node->next)
+                    {
+                        struct shm_app* app_item = *(struct shm_app**)((rt_base_t)list_node - sizeof(struct shm_app *));//在计算出的地址处,取值,得到的是指针!所以计算处的类型为**
+                        rt_kprintf("[%d]\t%x\t%d\t%x \r\n", pos++, app_item->lwp_addr, app_item->use_num, app_item->mem_node);
+                    }
+                }
+            }
+        }
+
+    }
+}
+
+void msh_print_shm_mem(int argc,char* argv[])
+{
+    print_shm_mem(&lwt_shm, 0);
+}
+FINSH_FUNCTION_EXPORT_ALIAS(msh_print_shm_mem, __cmd_list_shm_mem, LIST shm mem.);
