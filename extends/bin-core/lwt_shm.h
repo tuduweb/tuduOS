@@ -58,7 +58,7 @@ struct shm_app
     rt_uint32_t lwp_addr;
     struct shm_mem_ref* ref_tab;
     rt_uint16_t ref_tab_size;
-    rt_uint16_t use_num;
+    rt_uint16_t use_num;//use mem num
 };
 
 #define SHM_APP_TAB_SIZE 8
