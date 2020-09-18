@@ -294,6 +294,7 @@ struct shm_app* get_shm_app(lwt_shm_t lwt_shm)
                 
                 app_item->mem_node.prev = &app_item->mem_node;
                 app_item->mem_node.next = &app_item->mem_node;
+                app_tab_item->used_num++;
                 return app_item;
             }
         }
