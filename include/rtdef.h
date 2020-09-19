@@ -36,7 +36,7 @@
 
 #ifndef __RT_DEF_H__
 #define __RT_DEF_H__
-
+#define RT_USING_SIGNALS
 /* include rtconfig header to import configuration */
 #include <rtconfig.h>
 

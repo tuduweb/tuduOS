@@ -10,6 +10,9 @@
  * 共享内存
  */
 
+#define LWT_SHM_DEBUG 1
+
+
 struct _lwt_shm lwt_shm;
 #define LWT_SHM_SIZE 0x4000
 
@@ -17,8 +20,8 @@ struct _lwt_shm lwt_shm;
 
 //#define get_relation_app(ADDR)  ((struct shm_app*)(ADDR - struct_offset(struct shm_relation, app_node) + struct_offset(struct shm_relation, app) ))
 //#define get_relation_mem(ADDR)  ((struct shm_mem*)(ADDR - struct_offset(struct shm_relation, mem_node) + struct_offset(struct shm_relation, mem) ))
-#define get_relation_app(ADDR)  (*(struct shm_app**)(ADDR - sizeof(rt_base_t) ))
-#define get_relation_mem(ADDR)  (*(struct shm_mem**)(ADDR - sizeof(rt_base_t) ))
+#define get_relation_app(NODE)  (*(struct shm_app**)(NODE - sizeof(rt_base_t) ))
+#define get_relation_mem(NODE)  (*(struct shm_mem**)(NODE - sizeof(rt_base_t) ))
 
 struct bmem_block* get_mem_block(struct bmem_typedef* bmem)
 {
@@ -454,11 +457,46 @@ struct shm_mem* find_shm_mem(lwt_shm_t lwt_shm, void* addr)
     return RT_NULL;
 }
 
+/**
+ * @name 删除内存
+ */
 rt_err_t put_shm_mem(lwt_shm_t lwt_shm, struct shm_mem* mem)
 {
-    //删除内存
-    
-    return -RT_ERROR;
+    struct shm_mem_tab* mem_tab_item;
+    struct shm_mem*     mem_item;
+
+    for(mem_tab_item = (struct shm_mem_tab *)lwt_shm->mem_tab.next;
+        (rt_list_t *)mem_tab_item != &lwt_shm->mem_tab;
+        mem_tab_item = (struct shm_mem_tab *)mem_tab_item->node.next)
+    {
+        for(int i = 0;i < SHM_APP_TAB_SIZE; i++)
+        {
+            mem_item = mem_tab_item->tab + i;
+            if(mem == mem_item)
+            {
+                //找到了
+                mem_tab_item->used_num--;
+                //mem->addr = RT_NULL;
+                mem_item->size = 0;
+                break;
+            }
+        }
+
+        if(mem_tab_item->used_num == 0)
+        {
+            //rt_free(mem_tab_item);
+            //rt_list_remove(&mem_tab_item->node);
+            //可以删除tab
+        }
+    }
+
+    /* 判断是否执行 */
+    if(mem->size > 0)
+    {
+        return -RT_ERROR;
+    }
+
+    return RT_EOK;
 }
 
 struct shm_relation* get_shm_relation(lwt_shm_t lwt_shm)
@@ -567,9 +605,11 @@ struct shm_mem_ref* get_shm_mem_ref(struct shm_app* app, void* addr)
 void *lwt_shm_alloc(int size)
 {
     struct shm_app* app;
-    //app = find_shm_app(&lwt_shm, rt_thread_self()->lwp);
+#if LWT_SHM_DEBUG == 1
     app = find_shm_app(&lwt_shm, (void *)0x20000800);//查找当前的LWP有没有APP
-
+#else
+    app = find_shm_app(&lwt_shm, rt_thread_self()->lwp);
+#endif
     if(app == RT_NULL)
     {
         app = get_shm_app(&lwt_shm);
@@ -578,7 +618,11 @@ void *lwt_shm_alloc(int size)
             LOG_E("can't alloc new shm_app!");
             return RT_NULL;
         }
+#if LWT_SHM_DEBUG == 1
         app->lwp_addr = 0x20000800;//(rt_uint32_t)rt_thread_self()->lwp;
+#else
+        app->lwp_addr = (rt_uint32_t)rt_thread_self()->lwp;
+#endif
     }
 
     //新建
@@ -623,16 +667,22 @@ rt_err_t lwt_shm_retain(void* addr)
 
     if(mem)
     {
-        //app = find_shm_app(&lwt_shm, rt_thread_self()->lwp);//查找当前的LWP有没有APP
+#if LWT_SHM_DEBUG == 1
         app = find_shm_app(&lwt_shm, (void *)0x20000808);//查找当前的LWP有没有APP
-        
+#else
+        app = find_shm_app(&lwt_shm, rt_thread_self()->lwp);//查找当前的LWP有没有APP
+#endif
         /* not find, so need to new one */
         if(app == RT_NULL)
         {
             app = get_shm_app(&lwt_shm);
             if(app != RT_NULL)
             {
+#if LWT_SHM_DEBUG == 1
                 app->lwp_addr = 0x20000808;//(rt_uint32_t)rt_thread_self()->lwp;
+#else
+                app->lwp_addr = (rt_uint32_t)rt_thread_self()->lwp;
+#endif
             }else{
                 /* cant new shm_app */
             }
@@ -691,6 +741,71 @@ rt_err_t lwt_shm_retain(void* addr)
  */
 rt_err_t lwt_shm_free(void* addr)
 {
+    struct shm_mem* mem = RT_NULL;
+    struct shm_app* app = RT_NULL;
+
+    /* find this mem */
+    mem = find_shm_mem(&lwt_shm, addr);
+    if(mem == RT_NULL)
+    {
+        LOG_E("mem addr %x not find!", addr);
+        while(1);
+    }
+
+    /* mem -> app */
+    struct shm_relation* relation = RT_NULL;
+
+    struct shm_app* app_item = RT_NULL;
+    struct rt_list_node* node;
+    for(node = mem->app_node.next; node != &mem->app_node; node = node->next)
+    {
+        /* get app_item from struct<shm_relation> */
+        relation = (*(struct shm_relation**)(node - struct_offset(struct shm_relation, app_node) ));
+        //relation->app
+        if(relation->app->lwp_addr == (rt_uint32_t)rt_thread_self()->lwp)
+        {
+            app = relation->app;
+            break;
+        }
+    }
+
+    /* get_shm_mem_ref */
+    struct shm_mem_ref* mem_ref = get_shm_mem_ref(app, addr);
+    if(mem_ref->addr == RT_NULL)
+    {
+        LOG_E("mem_ref %x not find!", addr);
+        while(1);
+    }
+
+    if(mem_ref->ref > 0)
+    {
+        mem_ref->ref--;
+
+        if(mem_ref->ref == 0)
+        {
+            /* mem_ref in app must be deleted */
+            //relation->app_node
+            //relation->mem_node
+            rt_list_remove(&relation->app_node);
+            rt_list_remove(&relation->mem_node);
+            put_shm_relation(&lwt_shm, relation);
+            /* emptry mem_ref.addr can make the ref reused */
+            mem_ref->addr = RT_NULL;//清空mem_ref
+            /* sub app.use_num(mem use num), if the num equal zero then we can free the app */
+            app->use_num--;
+        }
+    }
+
+    /* if app_node in mem is emptry, indicate mem is useless */
+    if(mem->app_node.next == &mem->app_node)
+    {
+        bmem_free(lwt_shm.bmem, (void *)mem->addr);
+        put_shm_mem(&lwt_shm, mem);
+    }
+
+    /* put shm_app */
+    
+
     return RT_EOK;
 }
 

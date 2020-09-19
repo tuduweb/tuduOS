@@ -81,7 +81,7 @@ static void _signal_entry(void *parameter)
 
 /*
  * To deliver a signal to thread, there are cases:
- * 1. When thread is suspended, function resumes thread and
+ * 1. When thread is suspended, function resumes(重返) thread and
  * set signal stat;
  * 2. When thread is ready:
  *   - If function delivers a signal to self thread, just handle
@@ -496,7 +496,7 @@ void rt_thread_free_sig(rt_thread_t tid)
         RT_KERNEL_FREE(sig_vectors);
     }
 }
-
+#define SIGQUIT 3
 int rt_thread_kill(rt_thread_t tid, int sig)
 {
     siginfo_t si;
@@ -512,6 +512,16 @@ int rt_thread_kill(rt_thread_t tid, int sig)
     si.si_value.sival_ptr = RT_NULL;
 
     level = rt_hw_interrupt_disable();
+
+    if(sig == SIGQUIT)
+    {
+        rt_thread_delete(tid);
+        //到这里都是特权级状态，直接删除tid，那么状态还是特权级下
+        //rt_schedule();
+        rt_hw_interrupt_enable(level);
+        return RT_EOK;
+    }
+
     if (tid->sig_pending & sig_mask(sig))
     {
         /* whether already emits this signal? */
@@ -584,6 +594,59 @@ int rt_system_signal_init(void)
     }
 
     return 0;
+}
+
+#include "lwt.h"
+extern struct rt_lwt * lwt_get_lwt_from_pid(pid_t pid);
+int lwt_kill(pid_t pid,int sig)
+{
+    rt_base_t level;
+    struct rt_lwt* lwt = lwt_get_lwt_from_pid(pid);
+    rt_thread_t tid = RT_NULL;
+
+    if(lwt == RT_NULL)
+    {
+        rt_kprintf("PID %d not find!\n", pid);
+    }else{
+        rt_kprintf("PID %d find!\n", pid);
+        //lwt->t_grp.prev = &thread->sibling;
+        tid = (rt_thread_t)((rt_uint32_t)(lwt->t_grp.prev) - (rt_uint32_t)&(((struct rt_thread *) 0)->sibling));
+        rt_thread_kill(tid, sig);
+    }
+
+    level = rt_hw_interrupt_disable();
+
+    rt_hw_interrupt_enable(level);
+
+    return 0;
+}
+/**
+ * kill 2
+ * kill 4
+ */
+void cmd_kill(int argc,char **argv)
+{
+    pid_t pid = -1;
+    int sig = SIGQUIT;
+
+    if(argc >= 2)
+    {
+        pid = atoi(argv[1]);
+        if(argc > 4)
+        {
+            sig = atoi(argv[3]);
+        }
+        lwt_kill(pid, sig);
+    }else{
+        rt_kprintf("arg none!\n");
+    }
+}
+FINSH_FUNCTION_EXPORT_ALIAS(cmd_kill, __cmd_kill, kill signal);
+
+void cmd_killall(int argc,char **argv)
+{
+    pid_t pid = -1;
+    
 }
 
 #endif

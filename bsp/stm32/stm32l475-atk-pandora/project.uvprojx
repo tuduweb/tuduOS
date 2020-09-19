@@ -722,6 +722,21 @@
               <FileType>1</FileType>
               <FilePath>..\..\..\extends\bin-core\lwt.c</FilePath>
             </File>
+            <File>
+              <FileName>lwt_signal.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\extends\bin-core\lwt_signal.c</FilePath>
+            </File>
+            <File>
+              <FileName>lwt_shm.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\extends\bin-core\lwt_shm.c</FilePath>
+            </File>
+            <File>
+              <FileName>server.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\..\..\extends\bin-core\server.c</FilePath>
+            </File>
           </Files>
         </Group>
         <Group>

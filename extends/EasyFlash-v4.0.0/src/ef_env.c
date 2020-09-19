@@ -1543,7 +1543,7 @@ static EfErrCode create_env_blob(sector_meta_data_t sector, const char *key, con
                 env_hdr.crc32 = ef_calc_crc32(env_hdr.crc32, &ff, 1);
             }
             /* write ENV header data */
-            result = write_env_hdr(env_addr, &env_hdr);//把CRC32校验值计算出来后,写入HDR中..函数中有把ENV区块状态变成准备写入.
+            result = write_env_hdr(env_addr, &env_hdr);//把CRC32校验值计算出来后,写入HDR中..函数中有把ENV区块状态变成准备写入. ENV_PRE_WRITE
 
         }
         /* write key name */
