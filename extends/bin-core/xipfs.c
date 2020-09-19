@@ -518,6 +518,23 @@ int dfs_xipfs_ioctl(struct dfs_fd *fd, int cmd, void *args)
         }
         break;
     
+    //查找文件大小
+    case 0x0003:
+        env_dev = (ef_env_dev_t)fd->data;
+        if(env_dev)
+        {
+            //那么find_env
+            //find_env(env_dev, file->path+1,)
+            env_meta_data_t env = args;
+            
+            if(find_env(fd->path + 1, env) == false)
+            {
+                return -ENOENT;
+            }
+            *(int *)args = env->len;
+            return RT_EOK;
+        }
+        break;
     default:
         //命令字错误
         return -ENOSYS;
@@ -588,7 +605,7 @@ int dfs_xipfs_write(struct dfs_fd *fd, const void *buf, size_t len)
             {
                 ef_write_event = rt_event_create("ef_e", 0);
 
-                if(!ef_write_event || !(tid = rt_thread_create("write_t",xipfs_write_entry,fd,0x1000u,5,12)))
+                if(!ef_write_event || !(tid = rt_thread_create("write_t", xipfs_write_entry, fd, 0x1000u, 5, 12)))
                 {
                     //创建不了 那么是有错误的 内存不足
                     result = -RT_ENOMEM;

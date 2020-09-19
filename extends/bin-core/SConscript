@@ -6,6 +6,9 @@ CPPPATH = [cwd, str(Dir('#'))]
 src     = Split("""
 xipfs.c
 lwt.c
+lwt_signal.c
+lwt_shm.c
+server.c
 """)
 
 group = DefineGroup('Extends', src, depend = [''], CPPPATH = CPPPATH)
