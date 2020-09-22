@@ -349,6 +349,9 @@ struct rt_object
 #ifdef RT_USING_MODULE
     void      *module_id;                               /**< id of application module */
 #endif
+#ifdef RT_USING_LWP
+    rt_list_t lwt_object_list;
+#endif
     rt_list_t  list;                                    /**< list node of kernel object */
 };
 typedef struct rt_object *rt_object_t;                  /**< Type for kernel objects. */
@@ -384,6 +387,7 @@ enum rt_object_class_type
     RT_Object_Class_Device,                             /**< The object is a device */
     RT_Object_Class_Timer,                              /**< The object is a timer. */
     RT_Object_Class_Module,                             /**< The object is a module. */
+    RT_Object_Class_Channel,                            /**< The object is channel. by bin 20200919 */
     RT_Object_Class_Unknown,                            /**< The object is unknown. */
     RT_Object_Class_Static = 0x80                       /**< The object is a static object. */
 };
