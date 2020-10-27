@@ -612,6 +612,8 @@ struct rt_thread
     void            *si_list;                           /**< the signal infor list */
 #endif
 
+    void*       msg_ret;                                //channel msg相关
+
     rt_ubase_t  init_tick;                              /**< thread's initialized tick */
     rt_ubase_t  remaining_tick;                         /**< remaining tick */
 
@@ -1159,5 +1161,12 @@ struct bin_channel_msg
     } u;//消息实体
 };
 typedef struct bin_channel_msg *bin_channel_msg_t;
+
+struct bin_ipc_msg
+{
+    rt_list_t mlist;
+    struct bin_channel_msg msg;
+};
+typedef struct bin_ipc_msg *bin_ipc_msg_t;
 
 #endif

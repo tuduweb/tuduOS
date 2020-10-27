@@ -2468,6 +2468,35 @@ static const struct dfs_file_ops dfs_channel_file_ops =
 };
 
 /**
+ * IPC MSG全局初始化
+ */
+rt_err_t bin_ipc_msg_init()
+{
+    return -RT_ERROR;
+}
+
+bin_ipc_msg_t ipc_msg_alloc()
+{
+    return RT_NULL;
+}
+
+rt_err_t ipc_msg_free()
+{
+    return -RT_ERROR;
+}
+
+void ipc_msg_init(bin_ipc_msg_t msg, bin_channel_msg_t data, rt_uint8_t need_reply)
+{
+    //TODO:完善本结构
+    msg->msg.type = data->type;
+
+    msg->msg.sender = rt_thread_self();//?
+
+    //链表初始化
+    rt_list_init(&msg->mlist);
+}
+
+/**
  * This function will create a mutex from system resource
  *
  * @param name the name of mutex
@@ -2477,19 +2506,71 @@ static const struct dfs_file_ops dfs_channel_file_ops =
  *
  * @see rt_mutex_init
  */
-bin_channel_t bin_channel_open(const char *name, rt_uint8_t flag)
+int bin_channel_open(const char *name, rt_uint8_t flag)
 {
-    struct bin_channel *channel;
+    bin_channel_t channel = RT_NULL;
     rt_object_t obj;
     int fd;
     struct dfs_fd* d;
 
     RT_DEBUG_NOT_IN_INTERRUPT;
 
+    //在链表中查找是否有这个name的channel
+
+
+    //查找是否已经申明过
+    struct rt_object_information *information;
+    struct rt_object *object;
+    struct rt_list_node *node;
+
+    /* try to find device object */
+    information = rt_object_get_information(RT_Object_Class_Channel);
+    RT_ASSERT(information != RT_NULL);
+    for (node  = information->object_list.next;
+         node != &(information->object_list);
+         node  = node->next)
+    {
+        object = rt_list_entry(node, struct rt_object, list);
+        if (rt_strncmp(object->name, name, RT_NAME_MAX) == 0)
+        {
+            channel = (bin_channel_t)object;
+            break;
+        }
+    }
+
+    if(channel != RT_NULL)
+    {
+        //找到老的channel的 处理逻辑
+
+        rt_kprintf("CH %s has been found\r\n", channel->parent.parent.name);
+
+        struct dfs_fd *d;
+        struct dfs_fdtable *fdt;
+
+        fdt = dfs_fdtable_get();
+
+        for(fd = 0; fd < fdt->maxfd; ++fd)
+        {
+            d = fdt->fds[fd];
+            if( channel == (bin_channel_t) d->data)
+                break;
+        }
+
+        if(fd != fdt->maxfd)
+        {
+            //找到了这个fd
+            fd = fd + DFS_FD_OFFSET;
+            return fd;
+        }
+    }
+
+    fd = 0;
+
+
     /* allocate object */
     channel = (bin_channel_t)rt_object_allocate(RT_Object_Class_Channel, name);//还需要在函数中添加相应的Channel大小等初始化
     if (channel == RT_NULL)
-        return channel;
+        return -RT_ERROR;
     
     fd  = fd_new();//ref_count=1
     if(fd >= 0)
@@ -2535,54 +2616,304 @@ bin_channel_t bin_channel_open(const char *name, rt_uint8_t flag)
 
 
 
-#if 0
-    //查找是否已经申明过
-    struct rt_object_information *information;
-    struct rt_object *object;
-    struct rt_list_node *node;
 
-    /* enter critical */
-    if (rt_thread_self() != RT_NULL)
-        rt_enter_critical();
 
-    /* try to find device object */
-    information = rt_object_get_information(RT_Object_Class_Thread);
-    RT_ASSERT(information != RT_NULL);
-    for (node  = information->object_list.next;
-         node != &(information->object_list);
-         node  = node->next)
+    return fd;
+}
+
+rt_err_t bin_channel_close(int fd)
+{
+    bin_channel_t channel;
+    struct dfs_fd* d;
+
+    RT_DEBUG_NOT_IN_INTERRUPT;
+		d = fd_get(fd);
+    channel = (bin_channel_t)d->data;
+
+    /* parameter check */
+    RT_ASSERT(channel != RT_NULL);
+    RT_ASSERT(rt_object_get_type(&channel->parent.parent) == RT_Object_Class_Channel);
+    RT_ASSERT(rt_object_is_systemobject(&channel->parent.parent) == RT_FALSE);
+
+    /* wakeup all suspended threads */
+    rt_ipc_list_resume_all(&(channel->parent.suspend_thread));
+
+    /* delete channel object ,using kernel_free delete channel object */
+    rt_object_delete(&(channel->parent.parent));
+
+    //删除fd
+    fd_put(d);
+    fd_put(d);
+
+    return RT_EOK;
+}
+
+
+rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msgPtr)
+{
+    register rt_ubase_t level;
+    struct rt_thread *thread;
+
+    bin_channel_t channel;
+    struct dfs_fd* d;
+
+    /* get current thread */
+    thread = rt_thread_self();
+
+    d = fd_get(fd);
+    channel = (bin_channel_t)d->data;
+    fd_put(d);
+
+    //阻塞接收
+    RT_OBJECT_HOOK_CALL(rt_object_trytake_hook, (&(channel->parent.parent)));
+
+
+    /* disable interrupt */
+    level = rt_hw_interrupt_disable();
+
+
+    //check status
+
+
+
+    //suspend
+    /* put thread to suspended thread list */
+    rt_ipc_list_suspend(&(channel->parent.suspend_thread),
+                        thread,
+                        channel->parent.parent.flag);
+
+    if(timeout > 0)
     {
-        object = rt_list_entry(node, struct rt_object, list);
-        if (rt_strncmp(object->name, name, RT_NAME_MAX) == 0)
-        {
-            /* leave critical */
-            if (rt_thread_self() != RT_NULL)
-                rt_exit_critical();
-
-            return (rt_thread_t)object;
-        }
+        /* reset the timeout of thread timer and start it */
+        rt_timer_control(&(thread->thread_timer),
+                            RT_TIMER_CTRL_SET_TIME,
+                            &timeout);
+        rt_timer_start(&(thread->thread_timer));
     }
 
-    //fd
-#endif
+    /* enable interrupt */
+    rt_hw_interrupt_enable(level);
 
-    return channel;
+    /* do a schedule */
+    rt_schedule();
+
+    //程序会在这里断开
+
+    if (thread->error != RT_EOK)
+    {
+        /* return error */
+        return thread->error;
+    }
+
+    /* received an event, disable interrupt to protect */
+    level = rt_hw_interrupt_disable();
+
+    //接受消息
+
+    /* enable interrupt */
+    rt_hw_interrupt_enable(level);
+
+    RT_OBJECT_HOOK_CALL(rt_object_take_hook, (&(channel->parent.parent)));
+
+
+    return RT_EOK;
+}
+
+/**
+ * @param msg 临时变量,需要添加到信息队列里面
+ */
+rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
+{
+    struct rt_thread *thread;
+    register rt_ubase_t level;
+    rt_bool_t need_schedule;
+    register rt_base_t status;
+
+    bin_channel_t channel;
+    struct dfs_fd* d;
+
+    bin_ipc_msg_t ipc_msg;
+
+    RT_DEBUG_NOT_IN_INTERRUPT;
+
+    level = rt_hw_interrupt_disable();
+
+    ipc_msg = ipc_msg_alloc();
+    if(ipc_msg == RT_NULL)
+    {
+        rt_hw_interrupt_enable(level);
+        return -RT_ENOMEM;
+    }
+    
+    //msg->sender = rt_thread_self();
+
+    d = fd_get(fd);
+    channel = (bin_channel_t)d->data;
+    fd_put(d);//release the ref-count of fd
+
+    //INIT
+    ipc_msg_init(ipc_msg, msg, need_reply);
+
+
+    //if(channel.)
+
+
+    if(need_reply)
+        channel->reply = rt_thread_self();
+
+    //msg挂载在等待列表
+    
+
+    //rt_list_insert_after(&channel->wait_msg, );
+
+    //如果需要回复,那么阻塞等待
+    
+    
+    /* disable interrupt */
+    level = rt_hw_interrupt_disable();
+
+    RT_OBJECT_HOOK_CALL(rt_object_put_hook, (&(channel->parent.parent)));
+
+
+
+
+    struct rt_list_node *n;
+
+    if (!rt_list_isempty(&channel->parent.suspend_thread))
+    {
+        /* search thread list to resume thread */
+        n = channel->parent.suspend_thread.next;
+
+        while (n != &(channel->parent.suspend_thread))
+        {
+            /* get thread */
+            thread = rt_list_entry(n, struct rt_thread, tlist);
+
+            status = -RT_ERROR;
+
+
+            //statement
+            //TODO:查询该thread下是否因为这个事情阻塞
+
+            if(thread->msg_ret == RT_NULL)
+            {
+                //don't change the thread's status
+            }else{
+                
+            }
+
+            rt_kprintf("CH%d - Thread %d\r\n", fd, thread);
+
+            /* move node to the next *///先移动可能是怕这个n被销毁了
+            n = n->next;
+
+            /* condition is satisfied, resume thread */
+            if (status == RT_EOK)
+            {
+                /* clear event */
+                // if (thread->event_info & RT_EVENT_FLAG_CLEAR)
+                //     event->set &= ~thread->event_set;
+
+                /* resume thread, and thread list breaks out */
+                rt_thread_resume(thread);
+
+                /* need do a scheduling */
+                need_schedule = RT_TRUE;
+            }
+
+        }
+
+    }
+
+    /* enable interrupt */
+    rt_hw_interrupt_enable(level);
+
+    /* do a schedule */
+    if (need_schedule == RT_TRUE)
+        rt_schedule();
+
+    return RT_EOK;
 }
 
 
 
 
-int channel_test(void)
+
+int ch = -1;
+
+static void channel_recv_entry(void *parameter)
 {
-    bin_channel_t ch;
+    ch = bin_channel_open("ch_t", 0);
+    rt_kprintf("ch%d add.\r\n", ch);
+
 
     ch = bin_channel_open("ch_t", 0);
+    rt_kprintf("ch%d add.\r\n", ch);
 
-    rt_kprintf("ch test: %x\r\n", ch);
+    struct bin_channel_msg msg;
+    rt_err_t err = RT_EOK;
 
-    return 0;
+    err = bin_channel_recv(ch, -1, &msg);
+
+    rt_kprintf("ch%d errcode: %d\r\n", ch, err);
+
+    //while(1);
 }
 
+static void channel_send_entry(void *parameter)
+{
+    int ch2;
+    ch2 = bin_channel_open("ch_t", 0);
+    rt_kprintf("ch%d add.\r\n", ch);
+
+    struct bin_channel_msg msg;
+    rt_err_t err = RT_EOK;
+
+    err = bin_channel_send(ch2, &msg, 0);
+
+    rt_kprintf("ch%d errcode: %d\r\n", ch, err);
+
+    //while(1);
+}
+
+
+
+static rt_thread_t tid1 = RT_NULL, tid2 = RT_NULL;
+
+int channel_test(int argc, char **argv)
+{
+
+    if (argc == 1)
+    {
+        tid1 = rt_thread_create("ch_recv", channel_recv_entry, NULL, 512, 10, 20);
+        if(tid1 != RT_NULL)
+            rt_thread_startup(tid1);
+        
+        // tid2 = rt_thread_create("ch_recv", channel_recv_entry, NULL, 512, 10, 20);
+        // if(tid2 != RT_NULL)
+        //     rt_thread_startup(tid1);
+
+        return 0;
+    }else{
+
+        if(argc > 1)
+        {
+
+            rt_kprintf("ch delete: %x\r\n", bin_channel_close(ch));
+					
+            ch--;
+
+            return 0;
+        }
+
+    }
+		
+		return 0;
+}
+
+
 MSH_CMD_EXPORT(channel_test, channel_test!);
+
+
 
 /**@}*/
