@@ -56,6 +56,7 @@ enum rt_object_info_type
 #ifdef RT_USING_MODULE
     RT_Object_Info_Module,                             /**< The object is a module. */
 #endif
+    RT_Object_Info_Channel,                            //by bin
     RT_Object_Info_Unknown,                            /**< The object is unknown. */
 };
 
@@ -103,6 +104,10 @@ static struct rt_object_information rt_object_container[RT_Object_Info_Unknown] 
     /* initialize object container - module */
     {RT_Object_Class_Module, _OBJ_CONTAINER_LIST_INIT(RT_Object_Info_Module), sizeof(struct rt_dlmodule)},
 #endif
+//#ifdef RT_USING_CHANNEL
+    /* initialize object container - channel */
+    {RT_Object_Class_Channel, _OBJ_CONTAINER_LIST_INIT(RT_Object_Info_Channel), sizeof(struct bin_channel)},
+//#endif
 };
 
 #ifdef RT_USING_HOOK

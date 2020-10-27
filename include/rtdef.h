@@ -1116,4 +1116,29 @@ enum TICK_WAIT {
 
 #endif /* end of __cplusplus */
 
+struct bin_channel
+{
+    struct rt_ipc_object parent;                        /**< inherit from ipc_object */
+
+    rt_uint16_t          value;                         /**< value of mutex */
+
+    rt_uint8_t           original_priority;             /**< priority of last thread hold the mutex */
+    rt_uint8_t           hold;                          /**< numbers of thread hold the mutex */
+
+
+    rt_list_t           wait_msg;
+    rt_list_t           wait_thread;
+
+    int                 ref;
+    rt_thread_t         reply;
+
+    struct bin_wqueue
+    {
+        int             flag;
+        rt_list_t       waiting_list;
+    }reader_queue;
+    
+};
+typedef struct bin_channel *bin_channel_t;
+
 #endif
