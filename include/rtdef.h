@@ -384,6 +384,7 @@ enum rt_object_class_type
     RT_Object_Class_Device,                             /**< The object is a device */
     RT_Object_Class_Timer,                              /**< The object is a timer. */
     RT_Object_Class_Module,                             /**< The object is a module. */
+    RT_Object_Class_Channel,                            //add by bin
     RT_Object_Class_Unknown,                            /**< The object is unknown. */
     RT_Object_Class_Static = 0x80                       /**< The object is a static object. */
 };
@@ -1111,5 +1112,52 @@ enum TICK_WAIT {
 }
 
 #endif /* end of __cplusplus */
+
+
+struct bin_channel
+{
+    struct rt_ipc_object parent;                        /**< inherit from ipc_object */
+
+    rt_uint16_t          value;                         /**< value of mutex */
+
+    rt_uint8_t           original_priority;             /**< priority of last thread hold the mutex */
+    rt_uint8_t           hold;                          /**< numbers of thread hold the mutex */
+
+
+    rt_list_t           wait_msg;
+    rt_list_t           wait_thread;
+
+    int                 ref;
+    rt_thread_t         reply;
+
+    struct bin_wqueue
+    {
+        int             flag;
+        rt_list_t       waiting_list;
+    }reader_queue;
+    
+};
+typedef struct bin_channel *bin_channel_t;
+
+enum bin_channel_type
+{
+    BIN_CHANNEL_RAW,
+    BIN_CHANNEL_BUFFER
+};
+struct bin_channel_msg
+{
+    rt_thread_t sender;//消息发送者
+    int type;//消息种类
+    union
+    {
+        struct chbuf
+        {
+            void *buf;
+            size_t length;
+        } b;
+        void* d;
+    } u;//消息实体
+};
+typedef struct bin_channel_msg *bin_channel_msg_t;
 
 #endif

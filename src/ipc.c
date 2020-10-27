@@ -2451,4 +2451,138 @@ rt_err_t rt_mq_control(rt_mq_t mq, int cmd, void *arg)
 RTM_EXPORT(rt_mq_control);
 #endif /* end of RT_USING_MESSAGEQUEUE */
 
+
+#include "dfs.h"
+#include "dfs_file.h"
+
+static const struct dfs_file_ops dfs_channel_file_ops =
+{
+    RT_NULL,
+    RT_NULL,
+    RT_NULL,
+    RT_NULL,
+    RT_NULL,
+    RT_NULL,
+    RT_NULL,
+    RT_NULL,
+};
+
+/**
+ * This function will create a mutex from system resource
+ *
+ * @param name the name of mutex
+ * @param flag the flag of mutex
+ *
+ * @return the created mutex, RT_NULL on error happen
+ *
+ * @see rt_mutex_init
+ */
+bin_channel_t bin_channel_open(const char *name, rt_uint8_t flag)
+{
+    struct bin_channel *channel;
+    rt_object_t obj;
+    int fd;
+    struct dfs_fd* d;
+
+    RT_DEBUG_NOT_IN_INTERRUPT;
+
+    /* allocate object */
+    channel = (bin_channel_t)rt_object_allocate(RT_Object_Class_Channel, name);//还需要在函数中添加相应的Channel大小等初始化
+    if (channel == RT_NULL)
+        return channel;
+    
+    fd  = fd_new();//ref_count=1
+    if(fd >= 0)
+    {
+
+        /* initialize ipc object */
+        rt_ipc_object_init(&(channel->parent));
+
+        channel->value              = 1;
+        channel->original_priority  = 0xFF;
+        channel->hold               = 0;
+
+        channel->wait_thread.prev   = &channel->wait_thread;
+        channel->wait_thread.next   = &channel->wait_thread;
+
+        //消息队列
+        channel->wait_msg.prev      = &channel->wait_msg;
+        channel->wait_msg.next      = &channel->wait_msg;
+
+        rt_list_init(&channel->parent.suspend_thread);
+        rt_list_init(&channel->reader_queue.waiting_list);
+
+        //如果是初始化,那么ref = 1;如果不是,则为++
+        channel->ref                = 1;
+
+        /* set flag */
+        channel->parent.parent.flag = flag;
+
+        /* 放入fds操作集 */
+        d = fd_get(fd);//ref_count++, =2
+        d->type = FT_USER;
+        d->path = NULL;
+        d->flags = O_RDWR; /* set flags as read and write */
+        d->size = 0;
+        d->pos  = 0;
+        d->data = (void *)channel;
+        d->fops = &dfs_channel_file_ops;
+        /* release the ref-count of fd */
+        fd_put(d);//ref_count=1
+
+    }
+
+
+
+
+#if 0
+    //查找是否已经申明过
+    struct rt_object_information *information;
+    struct rt_object *object;
+    struct rt_list_node *node;
+
+    /* enter critical */
+    if (rt_thread_self() != RT_NULL)
+        rt_enter_critical();
+
+    /* try to find device object */
+    information = rt_object_get_information(RT_Object_Class_Thread);
+    RT_ASSERT(information != RT_NULL);
+    for (node  = information->object_list.next;
+         node != &(information->object_list);
+         node  = node->next)
+    {
+        object = rt_list_entry(node, struct rt_object, list);
+        if (rt_strncmp(object->name, name, RT_NAME_MAX) == 0)
+        {
+            /* leave critical */
+            if (rt_thread_self() != RT_NULL)
+                rt_exit_critical();
+
+            return (rt_thread_t)object;
+        }
+    }
+
+    //fd
+#endif
+
+    return channel;
+}
+
+
+
+
+int channel_test(void)
+{
+    bin_channel_t ch;
+
+    ch = bin_channel_open("ch_t", 0);
+
+    rt_kprintf("ch test: %x\r\n", ch);
+
+    return 0;
+}
+
+MSH_CMD_EXPORT(channel_test, channel_test!);
+
 /**@}*/
