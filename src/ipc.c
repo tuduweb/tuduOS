@@ -2477,7 +2477,11 @@ rt_err_t bin_ipc_msg_init()
 
 bin_ipc_msg_t ipc_msg_alloc()
 {
-    return RT_NULL;
+    bin_ipc_msg_t msg;
+
+    msg = (bin_ipc_msg_t)rt_malloc(sizeof(struct bin_ipc_msg));
+
+    return msg;
 }
 
 rt_err_t ipc_msg_free()
@@ -2721,6 +2725,9 @@ rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msgPtr)
 
 /**
  * @param msg 临时变量,需要添加到信息队列里面
+ * TODO:里面有流程导致系统错误
+ * bus fault:
+ * SCB_CFSR_BFSR:0x82 PRECISERR SCB->BFAR:DEADBEF0
  */
 rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
 {
@@ -2732,7 +2739,7 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
     bin_channel_t channel;
     struct dfs_fd* d;
 
-    bin_ipc_msg_t ipc_msg;
+    bin_ipc_msg_t ipc_msg = RT_NULL;
 
     RT_DEBUG_NOT_IN_INTERRUPT;
 
@@ -2768,12 +2775,10 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
 
     //如果需要回复,那么阻塞等待
     
-    
     /* disable interrupt */
-    level = rt_hw_interrupt_disable();
+    //level = rt_hw_interrupt_disable();
 
     RT_OBJECT_HOOK_CALL(rt_object_put_hook, (&(channel->parent.parent)));
-
 
 
 
@@ -2802,7 +2807,7 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
                 
             }
 
-            rt_kprintf("CH%d - Thread %d\r\n", fd, thread);
+            rt_kprintf("CH%d - Thread %s\r\n", fd, thread->name);
 
             /* move node to the next *///先移动可能是怕这个n被销毁了
             n = n->next;
@@ -2843,8 +2848,8 @@ int ch = -1;
 
 static void channel_recv_entry(void *parameter)
 {
-    ch = bin_channel_open("ch_t", 0);
-    rt_kprintf("ch%d add.\r\n", ch);
+    //ch = bin_channel_open("ch_t", 0);
+    //rt_kprintf("ch%d add.\r\n", ch);
 
 
     ch = bin_channel_open("ch_t", 0);
@@ -2855,7 +2860,7 @@ static void channel_recv_entry(void *parameter)
 
     err = bin_channel_recv(ch, -1, &msg);
 
-    rt_kprintf("ch%d errcode: %d\r\n", ch, err);
+    rt_kprintf("RECV:ch%d errcode: %d\r\n", ch, err);
 
     //while(1);
 }
@@ -2864,14 +2869,14 @@ static void channel_send_entry(void *parameter)
 {
     int ch2;
     ch2 = bin_channel_open("ch_t", 0);
-    rt_kprintf("ch%d add.\r\n", ch);
+    rt_kprintf("send entry\r\n", ch);
 
     struct bin_channel_msg msg;
     rt_err_t err = RT_EOK;
 
     err = bin_channel_send(ch2, &msg, 0);
 
-    rt_kprintf("ch%d errcode: %d\r\n", ch, err);
+    rt_kprintf("SEND:ch%d errcode: %d\r\n", ch2, err);
 
     //while(1);
 }
@@ -2889,9 +2894,11 @@ int channel_test(int argc, char **argv)
         if(tid1 != RT_NULL)
             rt_thread_startup(tid1);
         
-        // tid2 = rt_thread_create("ch_recv", channel_recv_entry, NULL, 512, 10, 20);
-        // if(tid2 != RT_NULL)
-        //     rt_thread_startup(tid1);
+        rt_thread_mdelay(2000);
+
+        tid2 = rt_thread_create("ch_send", channel_send_entry, NULL, 512, 10, 20);
+        if(tid2 != RT_NULL)
+            rt_thread_startup(tid2);
 
         return 0;
     }else{
