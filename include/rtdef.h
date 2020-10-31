@@ -566,7 +566,7 @@ struct rt_thread
 #endif
 
     rt_list_t   list;                                   /**< the object list */
-    rt_list_t   tlist;                                  /**< the thread list */
+    rt_list_t   tlist;                                  /**< the thread list */ //串联thread的节点
 
     /* stack point and entry */
     void       *sp;                                     /**< stack point */
@@ -630,11 +630,11 @@ struct rt_thread
 #endif
 
     rt_ubase_t  user_data;                             /**< private user data beyond this thread */
-    rt_list_t   sibling;                                  /*bin:*/
+    rt_list_t   sibling;                               /*bin:*/
     void        *user_entry;
     void        *user_stack;
     rt_uint32_t user_stack_size;
-    rt_uint32_t *kernel_sp;                                /**< kernel stack point */
+    rt_uint32_t *kernel_sp;                            /**< kernel stack point */
 
 };
 typedef struct rt_thread *rt_thread_t;
@@ -1158,7 +1158,7 @@ struct bin_channel_msg
         {
             void *buf;
             size_t length;
-        } b;
+        } b;//共享内存
         void* d;
     } u;//消息实体
 };

@@ -2467,6 +2467,10 @@ static const struct dfs_file_ops dfs_channel_file_ops =
     RT_NULL,
 };
 
+#define IPC_MSG_SIZE 100
+struct bin_ipc_msg ipc_msg[IPC_MSG_SIZE];
+int ipc_msg_pos = 0;//当前空闲的pos
+
 /**
  * IPC MSG全局初始化
  */
@@ -2477,9 +2481,17 @@ rt_err_t bin_ipc_msg_init()
 
 bin_ipc_msg_t ipc_msg_alloc()
 {
-    bin_ipc_msg_t msg;
+    bin_ipc_msg_t msg = RT_NULL;
 
-    msg = (bin_ipc_msg_t)rt_malloc(sizeof(struct bin_ipc_msg));
+    if(ipc_msg_pos < IPC_MSG_SIZE)
+    {
+        //msg = (bin_ipc_msg_t)rt_malloc(sizeof(struct bin_ipc_msg));
+        msg = ipc_msg + ipc_msg_pos;
+        ipc_msg_pos++;
+        //初始化
+    }else{
+        rt_kprintf("IPC MSG FULL\n");
+    }
 
     return msg;
 }
@@ -2495,6 +2507,8 @@ void ipc_msg_init(bin_ipc_msg_t msg, bin_channel_msg_t data, rt_uint8_t need_rep
     msg->msg.type = data->type;
 
     msg->msg.sender = rt_thread_self();//?
+
+    msg->msg.u = data->u;
 
     //链表初始化
     rt_list_init(&msg->mlist);
@@ -2519,10 +2533,7 @@ int bin_channel_open(const char *name, rt_uint8_t flag)
 
     RT_DEBUG_NOT_IN_INTERRUPT;
 
-    //在链表中查找是否有这个name的channel
-
-
-    //查找是否已经申明过
+    //查找是否已经申明过,在链表中查找是否有这个name的channel
     struct rt_object_information *information;
     struct rt_object *object;
     struct rt_list_node *node;
@@ -2701,7 +2712,9 @@ rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msgPtr)
     /* do a schedule */
     rt_schedule();
 
-    //程序会在这里断开
+    //程序会在这里断开..恢复也是恢复到这里!?
+
+    rt_kprintf("%s resume\n", thread->name);
 
     if (thread->error != RT_EOK)
     {
@@ -2713,6 +2726,11 @@ rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msgPtr)
     level = rt_hw_interrupt_disable();
 
     //接受消息
+    if(thread->msg_ret != RT_NULL)
+    {
+        bin_ipc_msg_t ipc_msg = (bin_ipc_msg_t)thread->msg_ret;
+        rt_kprintf("%s -> %s received %x\n", ipc_msg->msg.sender, thread->name, ipc_msg->msg.u.d);
+    }
 
     /* enable interrupt */
     rt_hw_interrupt_enable(level);
@@ -2803,6 +2821,9 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
             if(thread->msg_ret == RT_NULL)
             {
                 //don't change the thread's status
+                //暂时把回复放在这里试试
+                thread->msg_ret = (void*)ipc_msg;
+                status = RT_EOK;
             }else{
                 
             }
@@ -2853,7 +2874,7 @@ static void channel_recv_entry(void *parameter)
 
 
     ch = bin_channel_open("ch_t", 0);
-    rt_kprintf("ch%d add.\r\n", ch);
+    rt_kprintf("recv entry\r\n");
 
     struct bin_channel_msg msg;
     rt_err_t err = RT_EOK;
@@ -2874,6 +2895,8 @@ static void channel_send_entry(void *parameter)
     struct bin_channel_msg msg;
     rt_err_t err = RT_EOK;
 
+    msg.u.d = (void *)0x12345678;
+
     err = bin_channel_send(ch2, &msg, 0);
 
     rt_kprintf("SEND:ch%d errcode: %d\r\n", ch2, err);
@@ -2881,9 +2904,25 @@ static void channel_send_entry(void *parameter)
     //while(1);
 }
 
+static void channel_recv2_entry(void *parameter)
+{
+    int ch2;
+    ch2 = bin_channel_open("ch_t", 0);
+    rt_kprintf("recv entry\r\n");
+
+    struct bin_channel_msg msg;
+    rt_err_t err = RT_EOK;
+
+    err = bin_channel_recv(ch, -1, &msg);
+
+    rt_kprintf("RECV:ch%d errcode: %d\r\n", ch2, err);
+
+    //while(1);
+}
 
 
-static rt_thread_t tid1 = RT_NULL, tid2 = RT_NULL;
+
+static rt_thread_t tid1 = RT_NULL, tid2 = RT_NULL, tid3 = RT_NULL;
 
 int channel_test(int argc, char **argv)
 {
@@ -2893,8 +2932,13 @@ int channel_test(int argc, char **argv)
         tid1 = rt_thread_create("ch_recv", channel_recv_entry, NULL, 512, 10, 20);
         if(tid1 != RT_NULL)
             rt_thread_startup(tid1);
-        
+
+        tid3 = rt_thread_create("ch_recv2", channel_recv2_entry, NULL, 512, 10, 20);
+        if(tid3 != RT_NULL)
+            rt_thread_startup(tid3);
+
         rt_thread_mdelay(2000);
+
 
         tid2 = rt_thread_create("ch_send", channel_send_entry, NULL, 512, 10, 20);
         if(tid2 != RT_NULL)
