@@ -2664,7 +2664,7 @@ rt_err_t bin_channel_close(int fd)
 }
 
 
-rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msgPtr)
+rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msg)
 {
     register rt_ubase_t level;
     struct rt_thread *thread;
@@ -2725,11 +2725,30 @@ rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msgPtr)
     /* received an event, disable interrupt to protect */
     level = rt_hw_interrupt_disable();
 
-    //接受消息
+    /* 从 thread->msg_ret 中接受消息 */
     if(thread->msg_ret != RT_NULL)
     {
-        bin_ipc_msg_t ipc_msg = (bin_ipc_msg_t)thread->msg_ret;
+        msg = (bin_ipc_msg_t)thread->msg_ret;
         rt_kprintf("%s -> %s received %x\n", ipc_msg->msg.sender, thread->name, ipc_msg->msg.u.d);
+
+        //已经取出消息, 清空收件箱
+        thread->msg_ret = RT_NULL;
+
+        //已经取出消息, 那么待阅读队列里删除掉这个thread
+        rt_list_remove(&channel->reader_queue.waiting_list, &thread->tlist);
+
+        //如果需要回复,那么加入到回复队列中//?如果都用tlist做表示,那么怎么确定当前的状态在哪呢?所以需要个东西标记下状态吧?
+        rt_list_insert_after(&channel->wait_thread, &thread->tlist);
+
+        //如果队列空, 那么改变待阅读队列的状态
+        if(channel->reader_queue.waiting_list.next == &channel->reader_queue.waiting_list)
+            channel->reader_queue.flag = 0;
+    }
+
+    /* 需要回复的消息,使用别的函数回复 */
+    if(channel->reply != RT_NULL)
+    {
+        //
     }
 
     /* enable interrupt */
@@ -2780,13 +2799,11 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
     ipc_msg_init(ipc_msg, msg, need_reply);
 
 
-    //if(channel.)
-
-
     if(need_reply)
         channel->reply = rt_thread_self();
 
     //msg挂载在等待列表
+
     
 
     //rt_list_insert_after(&channel->wait_msg, );
@@ -2799,7 +2816,7 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
     RT_OBJECT_HOOK_CALL(rt_object_put_hook, (&(channel->parent.parent)));
 
 
-
+    /* map suspend thread in this channel, send msg */
     struct rt_list_node *n;
 
     if (!rt_list_isempty(&channel->parent.suspend_thread))
@@ -2816,17 +2833,26 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
 
 
             //statement
-            //TODO:查询该thread下是否因为这个事情阻塞
-
-            if(thread->msg_ret == RT_NULL)
+            /* 一个thread只会被阻塞在一个channel_recv上,不可能同时阻塞在两个上; msg_ret取走,那么就ok了; 那么还需要一个结构, 阅读了即清 */
+            /* 如果msg_ret不为空, 那么证明这个thread还没有接受上次的 */
+            if(thread->msg_ret != RT_NULL)
             {
-                //don't change the thread's status
-                //暂时把回复放在这里试试
-                thread->msg_ret = (void*)ipc_msg;
-                status = RT_EOK;
-            }else{
-                
+                /* 需要增加处理逻辑,比如等待失败时间 */
+                rt_kprintf("%s has unread msg, send suspend.\n",thread->name);
+                while(thread->msg_ret != RT_NULL)
+                {
+                    rt_kprintf("%s has unread msg, send suspend.\n",thread->name);
+                    rt_thread_mdelay(500);
+                }
             }
+
+            //don't change the thread's status
+            //暂时把回复放在这里试试
+            thread->msg_ret = (void*)ipc_msg;
+
+
+
+            status = RT_EOK;
 
             rt_kprintf("CH%d - Thread %s\r\n", fd, thread->name);
 
@@ -2841,7 +2867,13 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
                 //     event->set &= ~thread->event_set;
 
                 /* resume thread, and thread list breaks out */
+                /* 准备恢复这个thread, 然后调用shcedule执行调度恢复 */
                 rt_thread_resume(thread);
+
+                //改变队列状态
+                channel->reader_queue.flag = 1;
+                //增加到待阅读队列,但是好像不能用tlist?可以使用?因为已经从suspend的状态中读取了//在resume中tlist清空了
+                rt_list_insert_after(&channel->reader_queue.waiting_list, &thread->tlist);
 
                 /* need do a scheduling */
                 need_schedule = RT_TRUE;
@@ -2851,14 +2883,90 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
 
     }
 
+    if(need_reply)
+    {
+        /* 如果需要回复,那么阻塞此进程 */
+        rt_thread_suspend(rt_thread_self());
+    }
+
     /* enable interrupt */
     rt_hw_interrupt_enable(level);
 
     /* do a schedule */
     if (need_schedule == RT_TRUE)
         rt_schedule();
+    
+    if(need_reply)
+    {
+        /* 从阻塞中恢复 */
+    }
+
+    
+    if (!rt_list_isempty(&channel->parent.suspend_thread))
+    {
+        /* search thread list to resume thread */
+        n = channel->parent.suspend_thread.next;
+
+        while (n != &(channel->parent.suspend_thread))
+        {
+            /* get thread */
+            thread = rt_list_entry(n, struct rt_thread, tlist);
+
+            rt_kprintf("%s test!\n", thread->name);
+            n = n->next;
+        }
+    }
 
     return RT_EOK;
+}
+
+/**
+ * 消息回复
+ * @param fd fd_table
+ * @param msg 回复的消息
+ */
+rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
+{
+    register rt_ubase_t level;
+    struct rt_thread *thread;
+
+    bin_channel_t channel;
+    struct dfs_fd* d;
+
+    bin_ipc_msg_t ipc_msg;
+
+    /* get current thread */
+    thread = rt_thread_self();
+
+    d = fd_get(fd);
+    channel = (bin_channel_t)d->data;
+    fd_put(d);
+
+    //阻塞接收
+    RT_OBJECT_HOOK_CALL(rt_object_trytake_hook, (&(channel->parent.parent)));
+
+
+    /* disable interrupt */
+    level = rt_hw_interrupt_disable();
+
+
+    ipc_msg = ipc_msg_alloc();
+    
+    ipc_msg_init(ipc_msg, msg, 0);
+
+    /* 找到需要回复的进程? */
+    //需要回复的进程 : // channel->reply;
+    rt_thread_t reply_thread = (rt_thread_t) channel->reply;
+
+    //把消息加到回复队列中
+    rt_list_insert_after(&channel->wait_msg, &ipc_msg->mlist);
+    //移除待回复队列中
+    //rt_list_remove(channel->wait_thread);
+
+    rt_hw_interrupt_disable(level);
+
+
+    return -RT_ERROR;
 }
 
 

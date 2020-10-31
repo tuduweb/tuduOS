@@ -566,7 +566,7 @@ struct rt_thread
 #endif
 
     rt_list_t   list;                                   /**< the object list */
-    rt_list_t   tlist;                                  /**< the thread list */ //串联thread的节点
+    rt_list_t   tlist;                                  /**< the thread list */ //串联thread的节点,系统已占用,切勿随便使用
 
     /* stack point and entry */
     void       *sp;                                     /**< stack point */
