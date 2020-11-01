@@ -2696,7 +2696,7 @@ rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msg)
     rt_ipc_list_suspend(&(channel->parent.suspend_thread),
                         thread,
                         channel->parent.parent.flag);
-
+    //如果有timeout则打开定时器
     if(timeout > 0)
     {
         /* reset the timeout of thread timer and start it */
@@ -2728,21 +2728,23 @@ rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msg)
     /* 从 thread->msg_ret 中接受消息 */
     if(thread->msg_ret != RT_NULL)
     {
-        msg = (bin_ipc_msg_t)thread->msg_ret;
+        msg = (bin_channel_msg_t)thread->msg_ret;
         rt_kprintf("%s -> %s received %x\n", ipc_msg->msg.sender, thread->name, ipc_msg->msg.u.d);
 
         //已经取出消息, 清空收件箱
         thread->msg_ret = RT_NULL;
 
         //已经取出消息, 那么待阅读队列里删除掉这个thread
-        rt_list_remove(&channel->reader_queue.waiting_list, &thread->tlist);
+        //rt_list_remove(&thread->tlist);
 
         //如果需要回复,那么加入到回复队列中//?如果都用tlist做表示,那么怎么确定当前的状态在哪呢?所以需要个东西标记下状态吧?
-        rt_list_insert_after(&channel->wait_thread, &thread->tlist);
+        //rt_list_insert_after(&channel->wait_thread, &thread->tlist);
 
         //如果队列空, 那么改变待阅读队列的状态
         if(channel->reader_queue.waiting_list.next == &channel->reader_queue.waiting_list)
             channel->reader_queue.flag = 0;
+    }else{
+        rt_kprintf("%s MSG_RET empty!\n", thread->name);
     }
 
     /* 需要回复的消息,使用别的函数回复 */
@@ -2873,7 +2875,8 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
                 //改变队列状态
                 channel->reader_queue.flag = 1;
                 //增加到待阅读队列,但是好像不能用tlist?可以使用?因为已经从suspend的状态中读取了//在resume中tlist清空了
-                rt_list_insert_after(&channel->reader_queue.waiting_list, &thread->tlist);
+                //使用tlist程序跑飞，tlist跟调度相关，切勿使用
+                //rt_list_insert_after(&channel->wait_thread, &(thread->tlist));
 
                 /* need do a scheduling */
                 need_schedule = RT_TRUE;
@@ -2899,23 +2902,55 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
     if(need_reply)
     {
         /* 从阻塞中恢复 */
+
+    while(1)
+    {
+        level = rt_hw_interrupt_disable();
+
+        if (!rt_list_isempty(&channel->wait_msg))
+        {
+            rt_kprintf("==========\n%s send / received reply, resume!\n", thread->name);
+
+            /* search thread list to resume thread */
+            n = channel->wait_msg.next;
+
+            while (n != &(channel->wait_msg))
+            {
+                /* get thread */
+                ipc_msg = rt_list_entry(n, struct bin_ipc_msg, mlist);
+
+                rt_kprintf("%s in queue!\n", ipc_msg->msg.sender->name);
+                n = n->next;
+            }
+        }
+
+        //继续挂起
+        rt_thread_suspend(rt_thread_self());
+        rt_hw_interrupt_enable(level);
+        rt_schedule();
+
     }
+
+
+    }
+
+
 
     
-    if (!rt_list_isempty(&channel->parent.suspend_thread))
-    {
-        /* search thread list to resume thread */
-        n = channel->parent.suspend_thread.next;
+    // if (!rt_list_isempty(&channel->parent.suspend_thread))
+    // {
+    //     /* search thread list to resume thread */
+    //     n = channel->parent.suspend_thread.next;
 
-        while (n != &(channel->parent.suspend_thread))
-        {
-            /* get thread */
-            thread = rt_list_entry(n, struct rt_thread, tlist);
+    //     while (n != &(channel->parent.suspend_thread))
+    //     {
+    //         /* get thread */
+    //         thread = rt_list_entry(n, struct rt_thread, tlist);
 
-            rt_kprintf("%s test!\n", thread->name);
-            n = n->next;
-        }
-    }
+    //         rt_kprintf("%s test!\n", thread->name);
+    //         n = n->next;
+    //     }
+    // }
 
     return RT_EOK;
 }
@@ -2963,7 +2998,12 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
     //移除待回复队列中
     //rt_list_remove(channel->wait_thread);
 
-    rt_hw_interrupt_disable(level);
+    rt_thread_resume(reply_thread);
+
+    rt_hw_interrupt_enable(level);
+
+    /* do a schedule */
+    rt_schedule();
 
 
     return -RT_ERROR;
@@ -2974,6 +3014,24 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
 
 
 int ch = -1;
+
+static void channel_send_entry(void *parameter)
+{
+    int ch2;
+    ch2 = bin_channel_open("ch_t", 0);
+    rt_kprintf("send entry\r\n", ch);
+
+    struct bin_channel_msg msg;
+    rt_err_t err = RT_EOK;
+
+    msg.u.d = (void *)0x12345678;
+
+    err = bin_channel_send(ch2, &msg, 1);
+
+    rt_kprintf("SEND:ch%d errcode: %d\r\n", ch2, err);
+
+    //while(1);
+}
 
 static void channel_recv_entry(void *parameter)
 {
@@ -2991,23 +3049,9 @@ static void channel_recv_entry(void *parameter)
 
     rt_kprintf("RECV:ch%d errcode: %d\r\n", ch, err);
 
-    //while(1);
-}
+    bin_channel_reply(ch, &msg);
 
-static void channel_send_entry(void *parameter)
-{
-    int ch2;
-    ch2 = bin_channel_open("ch_t", 0);
-    rt_kprintf("send entry\r\n", ch);
-
-    struct bin_channel_msg msg;
-    rt_err_t err = RT_EOK;
-
-    msg.u.d = (void *)0x12345678;
-
-    err = bin_channel_send(ch2, &msg, 0);
-
-    rt_kprintf("SEND:ch%d errcode: %d\r\n", ch2, err);
+    //rt_list_remove(&(rt_thread_self()->tlist));
 
     //while(1);
 }
@@ -3024,6 +3068,8 @@ static void channel_recv2_entry(void *parameter)
     err = bin_channel_recv(ch, -1, &msg);
 
     rt_kprintf("RECV:ch%d errcode: %d\r\n", ch2, err);
+
+    bin_channel_reply(ch, &msg);
 
     //while(1);
 }
@@ -3045,7 +3091,7 @@ int channel_test(int argc, char **argv)
         if(tid3 != RT_NULL)
             rt_thread_startup(tid3);
 
-        rt_thread_mdelay(2000);
+        rt_thread_mdelay(500);
 
 
         tid2 = rt_thread_create("ch_send", channel_send_entry, NULL, 512, 10, 20);
