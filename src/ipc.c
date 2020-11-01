@@ -2986,6 +2986,9 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
 
 
     ipc_msg = ipc_msg_alloc();
+
+    if(ipc_msg == RT_NULL)
+        return -RT_ENOMEM;
     
     ipc_msg_init(ipc_msg, msg, 0);
 
@@ -3002,11 +3005,8 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
 
     rt_hw_interrupt_enable(level);
 
-    /* do a schedule */
-    rt_schedule();
 
-
-    return -RT_ERROR;
+    return RT_EOK;
 }
 
 
