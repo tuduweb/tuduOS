@@ -368,15 +368,29 @@ syscall_entry   PROC
 MemManage_Handler PROC
     EXPORT  MemManage_Handler
     IMPORT  MemManage_Main
-    
+
+    ; get user SP.
+    TST     LR, #0x4
+    ITE     EQ
+    MRSEQ   R0, MSP
+    MRSNE   R0, PSP
+
+    STMFD   R0!, {R4-R11}   ;push
+    STR     LR, [R0,#-4]!
+
+    MRS     R1, CONTROL
+    STR     R1, [R0,#-4]!
+    STR     LR, [R0,#-4]!
     PUSH    {LR}
+
     BL  MemManage_Main
-    POP     {LR}
+    ;POP     {LR}
+    ;B   .
 
-    B   .
 
+    LDR     LR, [SP],   #4
     ;return
-    ORR     LR, LR, #0x10   ;(1 << 4), clean FPCA.
+    ORR     LR, LR, #4   ;(1 << 4), clean FPCA.
     BX      LR
 
     ;B   .

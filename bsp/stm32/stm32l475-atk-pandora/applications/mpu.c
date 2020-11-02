@@ -2,39 +2,39 @@
 #include "rtthread.h"
 #include <rthw.h>
 #include "lwt.h"
-//---->ÒÔÏÂÎªÈÕÖ¾µ¥ÔªµÄÅäÖÃÏî
-#define LOG_TAG     "mpu"     // ¸ÃÄ£¿é¶ÔÓ¦µÄ±êÇ©¡£²»¶¨ÒåÊ±£¬Ä¬ÈÏ£ºNO_TAG
-//#define LOG_LVL     LOG_LVL_DBG   // ¸ÃÄ£¿é¶ÔÓ¦µÄÈÕÖ¾Êä³ö¼¶±ğ¡£²»¶¨ÒåÊ±£¬Ä¬ÈÏ£ºµ÷ÊÔ¼¶±ğ
-#include <ulog.h>                 // ±ØĞëÔÚ LOG_TAG Óë LOG_LVL ÏÂÃæ
-//ÈÕÖ¾µ¥ÔªÅäÖÃÏî½áÊø<----
+//---->ä»¥ä¸‹ä¸ºæ—¥å¿—å•å…ƒçš„é…ç½®é¡¹
+#define LOG_TAG     "mpu"     // è¯¥æ¨¡å—å¯¹åº”çš„æ ‡ç­¾ã€‚ä¸å®šä¹‰æ—¶ï¼Œé»˜è®¤ï¼šNO_TAG
+//#define LOG_LVL     LOG_LVL_DBG   // è¯¥æ¨¡å—å¯¹åº”çš„æ—¥å¿—è¾“å‡ºçº§åˆ«ã€‚ä¸å®šä¹‰æ—¶ï¼Œé»˜è®¤ï¼šè°ƒè¯•çº§åˆ«
+#include <ulog.h>                 // å¿…é¡»åœ¨ LOG_TAG ä¸ LOG_LVL ä¸‹é¢
+//æ—¥å¿—å•å…ƒé…ç½®é¡¹ç»“æŸ<----
 #include "stm32l4xx_hal.h"
 
 int MPU_Set_Protection(rt_uint32_t baseaddr, rt_uint32_t size, rt_uint32_t rnum, rt_uint32_t ap)
 {
     MPU_Region_InitTypeDef MPU_Initure;
 
-    HAL_MPU_Disable();								        //ÅäÖÃMPUÖ®Ç°ÏÈ¹Ø±ÕMPU,ÅäÖÃÍê³ÉÒÔºóÔÚÊ¹ÄÜMPU
+    HAL_MPU_Disable();								        //é…ç½®MPUä¹‹å‰å…ˆå…³é—­MPU,é…ç½®å®Œæˆä»¥ååœ¨ä½¿èƒ½MPU
 
-    MPU_Initure.Enable=MPU_REGION_ENABLE;			        //Ê¹ÄÜ¸Ã±£»¤ÇøÓò 
-    MPU_Initure.Number=rnum;			                    //ÉèÖÃ±£»¤ÇøÓò
-    MPU_Initure.BaseAddress=baseaddr;	                    //ÉèÖÃ»ùÖ·
-    MPU_Initure.Size=size;				                    //ÉèÖÃ±£»¤ÇøÓò´óĞ¡
-    MPU_Initure.SubRegionDisable=0X00;                      //½ûÖ¹×ÓÇøÓò
-    MPU_Initure.TypeExtField=MPU_TEX_LEVEL0;                //ÉèÖÃÀàĞÍÀ©Õ¹ÓòÎªlevel0
-    MPU_Initure.AccessPermission=(rt_uint8_t)ap;		            //ÉèÖÃ·ÃÎÊÈ¨ÏŞ,
-    MPU_Initure.DisableExec=MPU_INSTRUCTION_ACCESS_ENABLE;	//ÔÊĞíÖ¸Áî·ÃÎÊ(ÔÊĞí¶ÁÈ¡Ö¸Áî)
-    MPU_Initure.IsShareable=MPU_ACCESS_NOT_SHAREABLE;       //½ûÖ¹¹²ÓÃ
-    MPU_Initure.IsCacheable=MPU_ACCESS_NOT_CACHEABLE;       //½ûÖ¹cache  
-    MPU_Initure.IsBufferable=MPU_ACCESS_BUFFERABLE;         //ÔÊĞí»º³å
-    HAL_MPU_ConfigRegion(&MPU_Initure);                     //ÅäÖÃMPU
-    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);			        //¿ªÆôMPU
+    MPU_Initure.Enable=MPU_REGION_ENABLE;			        //ä½¿èƒ½è¯¥ä¿æŠ¤åŒºåŸŸ 
+    MPU_Initure.Number=rnum;			                    //è®¾ç½®ä¿æŠ¤åŒºåŸŸ
+    MPU_Initure.BaseAddress=baseaddr;	                    //è®¾ç½®åŸºå€
+    MPU_Initure.Size=size;				                    //è®¾ç½®ä¿æŠ¤åŒºåŸŸå¤§å°
+    MPU_Initure.SubRegionDisable=0X00;                      //ç¦æ­¢å­åŒºåŸŸ
+    MPU_Initure.TypeExtField=MPU_TEX_LEVEL0;                //è®¾ç½®ç±»å‹æ‰©å±•åŸŸä¸ºlevel0
+    MPU_Initure.AccessPermission=(rt_uint8_t)ap;		            //è®¾ç½®è®¿é—®æƒé™,
+    MPU_Initure.DisableExec=MPU_INSTRUCTION_ACCESS_ENABLE;	//å…è®¸æŒ‡ä»¤è®¿é—®(å…è®¸è¯»å–æŒ‡ä»¤)
+    MPU_Initure.IsShareable=MPU_ACCESS_NOT_SHAREABLE;       //ç¦æ­¢å…±ç”¨
+    MPU_Initure.IsCacheable=MPU_ACCESS_NOT_CACHEABLE;       //ç¦æ­¢cache  
+    MPU_Initure.IsBufferable=MPU_ACCESS_BUFFERABLE;         //å…è®¸ç¼“å†²
+    HAL_MPU_ConfigRegion(&MPU_Initure);                     //é…ç½®MPU
+    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);			        //å¼€å¯MPU
     return 0;
 }
 
 static int MPU_Init(void)
 {
 
-    //MPU_Set_Protection(0x60000000,MPU_REGION_SIZE_64MB,MPU_REGION_NUMBER0,MPU_REGION_NO_ACCESS);
+    MPU_Set_Protection(0x60000000, MPU_REGION_SIZE_64MB, MPU_REGION_NUMBER0, MPU_REGION_NO_ACCESS);
     return 0;
 }
 INIT_APP_EXPORT(MPU_Init);
@@ -51,7 +51,7 @@ struct exception_stack_frame
     rt_uint32_t psr;
 };
 /**
- * Ó²¼ş´íÎó´¦Àí ÔÚÓ²¼ş´íÎóµÄÊ±ºò»áµ÷ÓÃ´Ë·½·¨
+ * ç¡¬ä»¶é”™è¯¯å¤„ç† åœ¨ç¡¬ä»¶é”™è¯¯çš„æ—¶å€™ä¼šè°ƒç”¨æ­¤æ–¹æ³•
  **/
 rt_err_t exception_handle(struct exception_stack_frame *context)
 {
@@ -60,11 +60,11 @@ rt_err_t exception_handle(struct exception_stack_frame *context)
 
     rt_thread_t thread = rt_thread_self();
     struct rt_lwt* lwp = (struct rt_lwt *)thread->lwp;
-    
+
 
     if(lwp != RT_NULL)
     {
-        LOG_I("process:%s hardfault",thread->name);//ÕâÀïÌîÈëÃüÁî²ÎÊı
+        LOG_I("process:%s hardfault",thread->name);//è¿™é‡Œå¡«å…¥å‘½ä»¤å‚æ•°
         rt_kprintf("psr: 0x%08x\n", context->psr);
 
         rt_kprintf("r00: 0x%08x\n", context->r0);
@@ -77,20 +77,20 @@ rt_err_t exception_handle(struct exception_stack_frame *context)
 
 
         uint8_t* text_entry = lwp->text_entry;
-        //ÅĞ¶ÏÒ»ÏÂ Èç¹ûÕâÀïÔËĞĞµÄÊÇÓÃ»§Ì¬app,ÄÇÃ´´òÓ¡appÈë¿ÚµØÖ·µÈ
-        //ÈçºÎÅĞ¶ÏÊÇÓÃ»§Ì¬app?
+        //åˆ¤æ–­ä¸€ä¸‹ å¦‚æœè¿™é‡Œè¿è¡Œçš„æ˜¯ç”¨æˆ·æ€app,é‚£ä¹ˆæ‰“å°appå…¥å£åœ°å€ç­‰
+        //å¦‚ä½•åˆ¤æ–­æ˜¯ç”¨æˆ·æ€app?
 
 
-        //ÓÃ»§Ì¬app·¢Éú´íÎó ÖÕÖ¹±¾Ïß³Ì¼´¿É ÄÚºËÌ¬²»ÊÜÓ°Ïì
-        //Ïß³ÌÍ£Ö¹ÔËĞĞ
+        //ç”¨æˆ·æ€appå‘ç”Ÿé”™è¯¯ ç»ˆæ­¢æœ¬çº¿ç¨‹å³å¯ å†…æ ¸æ€ä¸å—å½±å“
+        //çº¿ç¨‹åœæ­¢è¿è¡Œ
 
-        //Ö´ĞĞµ÷¶ÈÆ÷
+        //æ‰§è¡Œè°ƒåº¦å™¨
         rt_schedule();
 
         rt_hw_interrupt_enable(level);
         return -1;
     }else{
-        //ÄÚºË·¢Éú´íÎó ÏµÍ³ÖÕÖ¹ ÎŞ·¨Íì»Ø
+        //å†…æ ¸å‘ç”Ÿé”™è¯¯ ç³»ç»Ÿç»ˆæ­¢ æ— æ³•æŒ½å›
         LOG_E("thread:%s hard fault in kernel",thread);
         rt_hw_interrupt_enable(level);
         return 0;
@@ -135,3 +135,21 @@ void bin_lwt_mpu_switch(rt_thread_t from, rt_thread_t to)
 
     //HAL_MPU_Enable();
 }
+
+
+
+int mpu_test(int argc, char **argv)
+{
+    if (argc == 1)
+    {
+        int* testPointer = (int *)0x60000000;
+
+        rt_kprintf("MPU test %d\n", *testPointer);
+
+    }else{
+        //
+    }
+		
+		return 0;
+}
+MSH_CMD_EXPORT(mpu_test, mpu_test!);
