@@ -34,7 +34,7 @@ int MPU_Set_Protection(rt_uint32_t baseaddr, rt_uint32_t size, rt_uint32_t rnum,
 static int MPU_Init(void)
 {
 
-    MPU_Set_Protection(0x60000000, MPU_REGION_SIZE_64MB, MPU_REGION_NUMBER0, MPU_REGION_NO_ACCESS);
+    //MPU_Set_Protection(0x20010000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER0, MPU_REGION_NO_ACCESS);
     return 0;
 }
 INIT_APP_EXPORT(MPU_Init);
@@ -136,20 +136,31 @@ void bin_lwt_mpu_switch(rt_thread_t from, rt_thread_t to)
     //HAL_MPU_Enable();
 }
 
+static void mpu_test_entry(void *parameter)
+{
+    int* testPointer = (int *)0x20010000;
 
+    *testPointer = 1234;
 
+    rt_kprintf("MPU test %d\n", *testPointer);
+}
+rt_thread_t tid1;
 int mpu_test(int argc, char **argv)
 {
     if (argc == 1)
     {
-        int* testPointer = (int *)0x60000000;
-
-        rt_kprintf("MPU test %d\n", *testPointer);
+        tid1 = rt_thread_create("mpu_test", mpu_test_entry, NULL, 512, 10, 20);
+        if(tid1 != RT_NULL)
+            rt_thread_startup(tid1);
 
     }else{
+        MPU_Set_Protection(0x20010000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER0, MPU_REGION_NO_ACCESS);
         //
     }
 		
-		return 0;
+    return 0;
 }
+
+
+
 MSH_CMD_EXPORT(mpu_test, mpu_test!);

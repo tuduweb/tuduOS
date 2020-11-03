@@ -364,7 +364,7 @@ syscall_entry   PROC
 
     ENDP
 
-
+;MPU保护功能 需要微调汇编程序
 MemManage_Handler PROC
     EXPORT  MemManage_Handler
     IMPORT  MemManage_Main
