@@ -34,7 +34,6 @@ int MPU_Set_Protection(rt_uint32_t baseaddr, rt_uint32_t size, rt_uint32_t rnum,
 static int MPU_Init(void)
 {
 
-    //MPU_Set_Protection(0x20000000, MPU_REGION_SIZE_16KB, MPU_REGION_NUMBER0, MPU_REGION_FULL_ACCESS);
     //MPU_Set_Protection(0x40000000, MPU_REGION_SIZE_512MB, MPU_REGION_NUMBER2, MPU_REGION_FULL_ACCESS);
     //HAL_NVIC_SetPriority(PendSV_IRQn, 0, 2);
     //HAL_NVIC_SetPriority(MemoryManagement_IRQn, 1, 2);
@@ -95,7 +94,7 @@ rt_err_t exception_handle(struct exception_stack_frame *context)
         return -1;
     }else{
         //内核发生错误 系统终止 无法挽回
-        LOG_E("thread:%s hard fault in kernel",thread);
+        LOG_E("thread:%s memmanage fault in kernel",thread);
         rt_hw_interrupt_enable(level);
         return 0;
     }
@@ -162,6 +161,7 @@ int mpu_test(int argc, char **argv)
             rt_thread_startup(tid1);
 
     }else{
+        MPU_Set_Protection(0x20000000, MPU_REGION_SIZE_1MB, MPU_REGION_NUMBER0, MPU_REGION_FULL_ACCESS);
         MPU_Set_Protection(0x20010000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER1, MPU_REGION_NO_ACCESS);
         //
     }
