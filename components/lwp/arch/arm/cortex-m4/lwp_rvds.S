@@ -365,6 +365,7 @@ syscall_entry   PROC
     ENDP
 
 ;MPU保护功能 需要微调汇编程序
+;需要将权限转入特权级!
 MemManage_Handler PROC
     EXPORT  MemManage_Handler
     IMPORT  MemManage_Main
@@ -374,18 +375,29 @@ MemManage_Handler PROC
     ITE     EQ
     MRSEQ   R0, MSP
     MRSNE   R0, PSP
-
+    MOV     R3, R0
     STMFD   R0!, {R4-R11}   ;push
+
+    
+
     STR     LR, [R0,#-4]!
 
     MRS     R1, CONTROL
     STR     R1, [R0,#-4]!
     STR     LR, [R0,#-4]!
     PUSH    {LR}
+    MOV     R0, R3
 
     BL  MemManage_Main
     ;POP     {LR}
     ;B   .
+
+
+    ; set to thread-privilege mode.
+    MRS     R3, CONTROL
+    BIC     R3, R3, #0x01
+    ORR     R3, R3, #0x02
+    MSR     CONTROL, R3
 
 
     LDR     LR, [SP],   #4

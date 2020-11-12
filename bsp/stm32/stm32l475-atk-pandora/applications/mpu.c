@@ -27,14 +27,18 @@ int MPU_Set_Protection(rt_uint32_t baseaddr, rt_uint32_t size, rt_uint32_t rnum,
     MPU_Initure.IsCacheable=MPU_ACCESS_NOT_CACHEABLE;       //禁止cache  
     MPU_Initure.IsBufferable=MPU_ACCESS_BUFFERABLE;         //允许缓冲
     HAL_MPU_ConfigRegion(&MPU_Initure);                     //配置MPU
-    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);			        //开启MPU
+    HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);			        //开启MPU//MPU_PRIVILEGED_DEFAULT:表示使能了背景區，特權級模式可以正常訪問任何未使能MPU的區域。
     return 0;
 }
 
 static int MPU_Init(void)
 {
 
-    //MPU_Set_Protection(0x20010000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER0, MPU_REGION_NO_ACCESS);
+    //MPU_Set_Protection(0x20000000, MPU_REGION_SIZE_16KB, MPU_REGION_NUMBER0, MPU_REGION_FULL_ACCESS);
+    //MPU_Set_Protection(0x40000000, MPU_REGION_SIZE_512MB, MPU_REGION_NUMBER2, MPU_REGION_FULL_ACCESS);
+    //HAL_NVIC_SetPriority(PendSV_IRQn, 0, 2);
+    //HAL_NVIC_SetPriority(MemoryManagement_IRQn, 1, 2);
+
     return 0;
 }
 INIT_APP_EXPORT(MPU_Init);
@@ -56,7 +60,7 @@ struct exception_stack_frame
 rt_err_t exception_handle(struct exception_stack_frame *context)
 {
     rt_uint32_t level;
-    level = rt_hw_interrupt_disable();
+    //level = rt_hw_interrupt_disable();
 
     rt_thread_t thread = rt_thread_self();
     struct rt_lwt* lwp = (struct rt_lwt *)thread->lwp;
@@ -85,7 +89,7 @@ rt_err_t exception_handle(struct exception_stack_frame *context)
         //线程停止运行
 
         //执行调度器
-        rt_schedule();
+        //rt_schedule();
 
         rt_hw_interrupt_enable(level);
         return -1;
@@ -101,10 +105,14 @@ rt_err_t exception_handle(struct exception_stack_frame *context)
 /**
   * @brief This function handles Memory management fault.
   */
-void MemManage_Main(void)
+void MemManage_Main(struct exception_stack_frame * sp)
 {
     rt_uint32_t level;
+
     level = rt_hw_interrupt_disable();
+    
+    exception_handle(sp);
+    
     rt_thread_t thread = rt_thread_self();
     
     rt_thread_delete(thread);
@@ -154,7 +162,7 @@ int mpu_test(int argc, char **argv)
             rt_thread_startup(tid1);
 
     }else{
-        MPU_Set_Protection(0x20010000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER0, MPU_REGION_NO_ACCESS);
+        MPU_Set_Protection(0x20010000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER1, MPU_REGION_NO_ACCESS);
         //
     }
 		
