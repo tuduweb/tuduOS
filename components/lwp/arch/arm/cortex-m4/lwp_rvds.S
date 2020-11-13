@@ -319,15 +319,15 @@ svc_exit     PROC
 
     MSR     PSP, R3                 ; restore app stack pointer
     ; restore to PSP & thread-unprivilege mode.;进入线程非特权模式,在核心中测试时，切勿进入，否则会发生无法切换线程的错误。
-    MRS     R2, CONTROL
-    ORR     R2, R2, #0x03
-    MSR     CONTROL, R2
+    ;MRS     R2, CONTROL
+    ;ORR     R2, R2, #0x03
+    ;MSR     CONTROL, R2
 
     ; return to lwp.<User App>
-    ORR     R1, R1, #0x01           ; only Thumb-mode.
-    BX      R1                      ; return to user app.
+    ;ORR     R1, R1, #0x01           ; only Thumb-mode.
+    ;BX      R1                      ; return to user app.
 
-    ;B       return_user_app
+    B       return_user_app
 
     ENDP
 
