@@ -7,19 +7,107 @@
 #include <rtdbg.h>
 
 #include "server.h"
+
+#include "string.h"
+
+
 /**
  * 后台应用
  */
 
-rt_err_t server_app_install()
+rt_err_t server_app_install(char* app)
 {
     return -RT_ERROR;
 }
 
+char txt[] = "hello IPC";
+
+
+struct system_cmd{
+    int type;
+    char* path;
+};
+
+struct system_cmd cmd;
+
+static void system_server_send_entry(void *parameter)
+{
+    int fd;
+    struct bin_channel_msg msg;
+
+
+    cmd.type = 1;
+
+
+    fd = bin_channel_open("server", 0);
+
+    msg.u.b.buf = &cmd;
+    bin_channel_send(fd, &msg, 0);
+
+
+
+    bin_channel_close(fd);
+}
+
 void msh_app_server(int argc,char* argv[])
 {
+    rt_thread_t tid1 = RT_NULL;
+
+    tid1 = rt_thread_create("srv_S", system_server_send_entry, NULL, 512, 10, 20);
+    if(tid1 != RT_NULL)
+        rt_thread_startup(tid1);
+
 }
-FINSH_FUNCTION_EXPORT_ALIAS(msh_app_server, __cmd_list_appserver, application server.);
+
+FINSH_FUNCTION_EXPORT_ALIAS(msh_app_server, __cmd_server_test, application server.);
+
+
+static void system_server_entry(void *parameter)
+{
+    int fd;
+    struct bin_channel_msg msg;
+    struct system_cmd cmd;
+    fd = bin_channel_open("server", 0);
+
+    /* 挂起线程,等待命令的到来 */
+    while(bin_channel_recv(fd, -1, &msg) == RT_EOK)
+    {
+        rt_kprintf("[SRV](from:%s) %x\n", (msg.sender)->name, msg.u.d );//, msg->u.b.buf
+
+        memcpy(&cmd, msg.u.b.buf, sizeof(cmd));
+
+
+        switch (cmd.type)
+        {
+        case 1:
+            rt_kprintf("app install %s\n", cmd.path);
+            break;
+        
+        default:
+            break;
+        }
+        
+        //bin_channel_reply(fd, &msg);
+
+        //rt_kprintf("hello\n");
+    }
+
+}
+
+int system_server_init(void)
+{
+    rt_thread_t tid = RT_NULL;
+    tid = rt_thread_create("srv", system_server_entry, NULL, 512, 10, 20);
+    if(tid != RT_NULL)
+        rt_thread_startup(tid);
+    else
+    {
+        LOG_E("system server init error!");
+        while(1);
+    }
+    return 0;
+}
+INIT_ENV_EXPORT(system_server_init);
 
 
 /* ymodem_app */
@@ -125,7 +213,18 @@ rt_err_t ymodem_get_app(rt_device_t idev)
     /* if complate trans , we should install the app . And the app path is 'ctx->fpath' */
     /* we use xipfs to save App, so we need write this whole file to xipfs */
 
-    rt_free(ctx);
+    int fd;
+    fd = bin_channel_open("server", 0);
+
+    struct bin_channel_msg msg;
+
+    cmd.type = 1;
+    cmd.path = ctx->fpath;
+    msg.u.b.buf = &cmd;
+    bin_channel_send(fd, &msg, 0);
+    //need reply 阻塞
+
+    bin_channel_close(fd);
 
     //int fd = open(ctx->fpath, 0, O_RDONLY);
     struct stat buf;
@@ -150,6 +249,8 @@ rt_err_t ymodem_get_app(rt_device_t idev)
             }
         }
     }
+
+    rt_free(ctx);
 
     return res;
 }
