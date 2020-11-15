@@ -162,7 +162,7 @@ int mpu_test(int argc, char **argv)
 
     }else{
         MPU_Set_Protection(0x20000000, MPU_REGION_SIZE_1MB, MPU_REGION_NUMBER0, MPU_REGION_FULL_ACCESS);
-        MPU_Set_Protection(0x20010000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER1, MPU_REGION_NO_ACCESS);
+        //MPU_Set_Protection(0x20010000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER1, MPU_REGION_NO_ACCESS);
         //
     }
 		

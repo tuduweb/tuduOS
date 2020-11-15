@@ -395,6 +395,16 @@ rt_err_t rt_mq_recv(rt_mq_t    mq,
 rt_err_t rt_mq_control(rt_mq_t mq, int cmd, void *arg);
 #endif
 
+
+int bin_channel_open(const char *name, rt_uint8_t flag);
+rt_err_t bin_channel_close(int fd);
+rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msg);
+rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply);
+rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg);
+
+
+
+
 /*
  * spinlock
  */
