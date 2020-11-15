@@ -83,6 +83,10 @@ static void system_server_entry(void *parameter)
             rt_kprintf("app install %s\n", cmd.path);
             break;
         
+        case 2:
+            rt_kprintf("app uninstall %s\n", cmd.path);
+            break;
+        
         default:
             break;
         }
