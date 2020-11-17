@@ -2943,7 +2943,7 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
                 
                     //暂时把接收到的消息逻辑放在这里..
 
-                    rt_kprintf("[%s]reply: %x\n", ipc_msg->msg.sender->name, ipc_msg->msg.u.d);
+                    rt_kprintf("[%s]reply: %d\n", ipc_msg->msg.sender->name, ipc_msg->msg.u.d);
 
                     rt_list_remove(&ipc_msg->mlist);
 
@@ -2976,6 +2976,8 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
             rt_hw_interrupt_enable(level);
             rt_schedule();
         }
+
+        //only break can out
 
     }
 
@@ -3038,7 +3040,7 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
     ipc_msg_init(ipc_msg, msg, 0);
     **/
     struct rt_list_node *n;
-    int find_ok = FALSE;
+    int find_ok = RT_FALSE;
     bin_ipc_msg_t current_msg = RT_NULL;
 
     if (!rt_list_isempty(&channel->reader_queue.waiting_list))
@@ -3051,19 +3053,21 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
         {
             current_msg = rt_list_entry(n, struct bin_ipc_msg, mlist);
 
+						//n迭代，防止丢失n->next信息
+            n = n->next; 
+					
             if(current_msg->msg.sender != thread)
                 continue;
 
             rt_kprintf("%s Reply msg found\n", thread->name);
 
 
-            //n迭代，防止丢失n->next信息
-            n = n->next; 
+
 
             //找到了这个东西,那么从waiting_list中删除
             rt_list_remove(&current_msg->mlist);
 
-            find_ok = TRUE;
+            find_ok = RT_TRUE;
 
             //消息初始化
             ipc_msg_init(current_msg, msg, 0);
@@ -3076,7 +3080,7 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
         }
     }
 
-    if(find_ok == TRUE)
+    if(find_ok == RT_TRUE)
     {
 
         /* 激活回复的线程,后面要升级成在send时候，是等待全部消息都reply再激活线程还是回复一次激活一次,但是这种方式就不能在send里面wait了，需要结合其它函数一起使用 */
@@ -3088,7 +3092,7 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
     rt_hw_interrupt_enable(level);
 
 
-    return find_ok == TRUE ? RT_EOK : -RT_ERROR;
+    return find_ok == RT_TRUE ? RT_EOK : -RT_ERROR;
 }
 
 
@@ -3150,6 +3154,8 @@ static void channel_recv2_entry(void *parameter)
     err = bin_channel_recv(ch, -1, &msg);
 
     rt_kprintf("RECV:ch%d errcode: %d\r\n", ch2, err);
+
+    msg.u.d = (void *)1234;
 
     bin_channel_reply(ch, &msg);
 
