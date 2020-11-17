@@ -1140,7 +1140,7 @@ struct bin_channel
     {
         int             flag;
         rt_list_t       waiting_list;
-    }reader_queue;
+    }reader_queue;//需要回复的时候才需要?还是一股脑先给整起来呢?Pi
     
 };
 typedef struct bin_channel *bin_channel_t;

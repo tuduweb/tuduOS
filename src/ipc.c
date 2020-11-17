@@ -2496,7 +2496,7 @@ bin_ipc_msg_t ipc_msg_alloc()
     return msg;
 }
 
-rt_err_t ipc_msg_free()
+rt_err_t ipc_msg_free(bin_ipc_msg_t msg)
 {
     return -RT_ERROR;
 }
@@ -2875,8 +2875,16 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
                 //改变队列状态
                 channel->reader_queue.flag = 1;
                 //增加到待阅读队列,但是好像不能用tlist?可以使用?因为已经从suspend的状态中读取了//在resume中tlist清空了
-                //使用tlist程序跑飞，tlist跟调度相关，切勿使用
-                //rt_list_insert_after(&channel->wait_thread, &(thread->tlist));
+                //////使用tlist程序跑飞，tlist跟调度相关，切勿使用
+                //////rt_list_insert_after(&channel->wait_thread, &(thread->tlist));
+
+                if(need_reply)
+                {
+                    bin_ipc_msg_t reply_msg = ipc_msg_alloc();
+                    reply_msg->msg.sender = thread;
+                    reply_msg->msg.type = 0;//还没接受到消息
+                    rt_list_insert_after(&channel->reader_queue.waiting_list, &reply_msg->mlist);
+                }
 
                 /* need do a scheduling */
                 need_schedule = RT_TRUE;
@@ -2902,35 +2910,60 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
     if(need_reply)
     {
         /* 从阻塞中恢复 */
+        //判断是否全部回复,或者得到了其它可以中止接受全局回复的指令?
+        //设计是回复一个激活一下还是全部回复完毕再激活?————————————————答：看我们的需求
 
-    while(1)
-    {
-        level = rt_hw_interrupt_disable();
-
-        if (!rt_list_isempty(&channel->wait_msg))
+        while(1)
         {
-            rt_kprintf("==========\n%s send / received reply, resume!\n", thread->name);
+            level = rt_hw_interrupt_disable();
 
-            /* search thread list to resume thread */
-            n = channel->wait_msg.next;
-
-            while (n != &(channel->wait_msg))
+            if (!rt_list_isempty(&channel->wait_msg))
             {
-                /* get thread */
-                ipc_msg = rt_list_entry(n, struct bin_ipc_msg, mlist);
+                /* search thread list to resume thread */
+                n = channel->wait_msg.next;
 
-                rt_kprintf("%s in queue!\n", ipc_msg->msg.sender->name);
-                n = n->next;
+                while (n != &(channel->wait_msg))
+                {
+                    /* get thread */
+                    ipc_msg = rt_list_entry(n, struct bin_ipc_msg, mlist);
+
+                    n = n->next;
+                
+                    //暂时把接收到的消息逻辑放在这里..
+
+                    rt_kprintf("[%s]reply: %x\n", ipc_msg->msg.sender->name, ipc_msg->msg.u.d);
+
+                    rt_list_remove(&ipc_msg->mlist);
+
+                    //ipc_msg暂时不能free,意思一下
+                    ipc_msg_free(ipc_msg);
+                }
+                //能从这里出来,说明能free(remove)的都free完了..
+
+            }else{
+                //走这里出来,说明出问题了
+                rt_hw_interrupt_enable(level);
+                while(1)
+                {
+                    rt_kprintf("%s channel recv reply error!\n", channel->reply->name);
+                    rt_thread_mdelay(1000);
+                }
+                break;
             }
+
+
+            if(rt_list_isempty(&channel->wait_msg) && (rt_list_isempty(&channel->reader_queue.waiting_list)))
+            {
+                //这里说明循环完毕,需要退出while循环
+                rt_hw_interrupt_enable(level);
+                break;
+            }
+
+            //继续挂起
+            rt_thread_suspend(rt_thread_self());
+            rt_hw_interrupt_enable(level);
+            rt_schedule();
         }
-
-        //继续挂起
-        rt_thread_suspend(rt_thread_self());
-        rt_hw_interrupt_enable(level);
-        rt_schedule();
-
-    }
-
 
     }
 
@@ -2984,29 +3017,66 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
     /* disable interrupt */
     level = rt_hw_interrupt_disable();
 
-
+    /** //这是在reply中申请的方式,现在转换为在send阶段申请
     ipc_msg = ipc_msg_alloc();
 
     if(ipc_msg == RT_NULL)
         return -RT_ENOMEM;
     
     ipc_msg_init(ipc_msg, msg, 0);
+    **/
+    struct rt_list_node *n;
+    int find_ok = FALSE;
+    bin_ipc_msg_t current_msg = RT_NULL;
 
-    /* 找到需要回复的进程? */
-    //需要回复的进程 : // channel->reply;
-    rt_thread_t reply_thread = (rt_thread_t) channel->reply;
+    if (!rt_list_isempty(&channel->reader_queue.waiting_list))
+    {
+        /* search thread list to resume thread */
+        n = channel->reader_queue.waiting_list.next;
 
-    //把消息加到回复队列中
-    rt_list_insert_after(&channel->wait_msg, &ipc_msg->mlist);
-    //移除待回复队列中
-    //rt_list_remove(channel->wait_thread);
 
-    rt_thread_resume(reply_thread);
+        while (n != &(channel->reader_queue.waiting_list))
+        {
+            current_msg = rt_list_entry(n, struct bin_ipc_msg, mlist);
+
+            if(current_msg->msg.sender != thread)
+                continue;
+
+            rt_kprintf("%s Reply msg found\n", thread->name);
+
+
+            //n迭代，防止丢失n->next信息
+            n = n->next; 
+
+            //找到了这个东西,那么从waiting_list中删除
+            rt_list_remove(&current_msg->mlist);
+
+            find_ok = TRUE;
+
+            //消息初始化
+            ipc_msg_init(current_msg, msg, 0);
+
+            //初始化完成,加入wait_msg中
+            rt_list_insert_after(&channel->wait_msg, &current_msg->mlist);
+
+            //跳出while循环,因为reply是针对单个recv的。
+            break;
+        }
+    }
+
+    if(find_ok == TRUE)
+    {
+
+        /* 激活回复的线程,后面要升级成在send时候，是等待全部消息都reply再激活线程还是回复一次激活一次,但是这种方式就不能在send里面wait了，需要结合其它函数一起使用 */
+        rt_thread_t reply_thread = (rt_thread_t) channel->reply;
+
+        rt_thread_resume(reply_thread);
+    }
 
     rt_hw_interrupt_enable(level);
 
 
-    return RT_EOK;
+    return find_ok == TRUE ? RT_EOK : -RT_ERROR;
 }
 
 
