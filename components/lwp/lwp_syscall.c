@@ -316,6 +316,8 @@ const static void* func_table2[] =
     (void *)rt_mb_delete,
     (void *)rt_mb_send,
     (void *)rt_mb_recv,
+
+    (void *)rt_kprintf,
 };
 
 
