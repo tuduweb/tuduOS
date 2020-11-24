@@ -68,7 +68,7 @@ FINSH_FUNCTION_EXPORT_ALIAS(msh_app_server, __cmd_server_test, application serve
 #include <stdlib.h>
 #include "ymodem.h"
 #include "finsh.h"
-
+extern const char *_get_path_lastname(const char *path);
 static void system_server_entry(void *parameter)
 {
     int fd;
@@ -118,7 +118,6 @@ static void system_server_entry(void *parameter)
                 //         rt_free(appBuf);
                 //     }
                 // }
-                extern const char *_get_path_lastname(const char *path);
 
                 filename = (char *)rt_malloc(100);
                 strcpy(filename, "/xip/");
@@ -140,11 +139,13 @@ static void system_server_entry(void *parameter)
             if(cmd.path == RT_NULL)
                 break;
 
-            if(stat(cmd.path, &buf)  == RT_EOK)
+            filename = (char *)rt_malloc(100);
+            strcpy(filename, "/xip/");
+            strcat(filename, _get_path_lastname(cmd.path));
+
+            if(stat(filename, &buf)  == RT_EOK)
             {
-                filename = (char *)rt_malloc(100);
-                strcpy(filename, "/xip/");
-                strcat(filename, _get_path_lastname(cmd.path));
+
 
                 if(dfs_file_unlink(filename) < 0)
                 {
@@ -152,8 +153,9 @@ static void system_server_entry(void *parameter)
                 }else{
                     rt_kprintf("Delete %s ok\n", filename);
                 }
-                rt_free(filename);
             }
+            
+            rt_free(filename);
             break;
         
         default:
@@ -337,3 +339,32 @@ int ymodem_app(int argc,char* argv[])
     return res;
 }
 MSH_CMD_EXPORT(ymodem_app, ymodem_app isntall app.);
+
+
+
+int server_app(int argc, char* argv[])
+{
+    if(argc == 1)
+    {
+        //empty args
+    
+    }else{
+
+        int fd;
+        fd = bin_channel_open("server", 0);
+
+        struct bin_channel_msg msg;
+
+        cmd.type = 2;
+        cmd.path = "test";
+        msg.u.b.buf = &cmd;
+
+        bin_channel_send(fd, &msg, 1);
+        //need reply 阻塞
+        bin_channel_close(fd);
+
+    }
+    return 0;
+}
+
+FINSH_FUNCTION_EXPORT_ALIAS(server_app, __cmd_app, APP helper~);
