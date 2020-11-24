@@ -2855,8 +2855,10 @@ rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
                 rt_kprintf("%s has unread msg, send suspend.\n",thread->name);
                 while(thread->msg_ret != RT_NULL)
                 {
+                    rt_hw_interrupt_enable(level);
                     rt_kprintf("%s has unread msg, send suspend.\n",thread->name);
-                    rt_thread_mdelay(500);
+                    rt_thread_mdelay(2000);
+                    level = rt_hw_interrupt_disable();
                 }
             }
 
@@ -3082,6 +3084,8 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
 
     if(find_ok == RT_TRUE)
     {
+        //清空发送的消息ret
+        thread->msg_ret = RT_NULL;
 
         /* 激活回复的线程,后面要升级成在send时候，是等待全部消息都reply再激活线程还是回复一次激活一次,但是这种方式就不能在send里面wait了，需要结合其它函数一起使用 */
         rt_thread_t reply_thread = (rt_thread_t) channel->reply;
@@ -3156,6 +3160,8 @@ static void channel_recv2_entry(void *parameter)
     rt_kprintf("RECV:ch%d errcode: %d\r\n", ch2, err);
 
     msg.u.d = (void *)1234;
+
+    rt_thread_mdelay(3000);
 
     bin_channel_reply(ch, &msg);
 
