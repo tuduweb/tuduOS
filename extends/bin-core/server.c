@@ -118,16 +118,18 @@ static void system_server_entry(void *parameter)
                 //         rt_free(appBuf);
                 //     }
                 // }
+                if(buf.st_size > 0 && buf.st_size < 4096*4)
+                {
+                    filename = (char *)rt_malloc(100);
+                    strcpy(filename, "/xip/");
+                    strcat(filename, _get_path_lastname(cmd.path));
 
-                filename = (char *)rt_malloc(100);
-                strcpy(filename, "/xip/");
-                strcat(filename, _get_path_lastname(cmd.path));
+                    extern void copy(const char *src, const char *dst);
+                    rt_kprintf("filedir:%s\n", filename);//输出最后一个斜杠后的,即文件名
+                    copy(cmd.path, filename);
 
-                extern void copy(const char *src, const char *dst);
-                rt_kprintf("filedir:%s\n", filename);//输出最后一个斜杠后的,即文件名
-                copy(cmd.path, filename);
-
-                rt_free(filename);
+                    rt_free(filename);
+                }
             
             }
 
@@ -137,6 +139,8 @@ static void system_server_entry(void *parameter)
             rt_kprintf("app uninstall %s\n", cmd.path);
             //卸载用到的是写入空
             if(cmd.path == RT_NULL)
+                break;
+            if(buf.st_size == 0)
                 break;
 
             filename = (char *)rt_malloc(100);
