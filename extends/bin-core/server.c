@@ -74,7 +74,8 @@ static void system_server_entry(void *parameter)
     int fd;
     struct bin_channel_msg msg;
     struct system_cmd cmd;
-    register rt_ubase_t level;
+    struct stat buf;
+    char* filename = "\0";
 
     fd = bin_channel_open("server", 0);
 
@@ -94,7 +95,6 @@ static void system_server_entry(void *parameter)
             if(cmd.path == RT_NULL)
                 break;
 
-            struct stat buf;
             if(stat(cmd.path, &buf)  == RT_EOK)
             {
                 rt_kprintf("[SRV] app size:%d\n", buf.st_size);
@@ -118,8 +118,17 @@ static void system_server_entry(void *parameter)
                 //         rt_free(appBuf);
                 //     }
                 // }
+                extern const char *_get_path_lastname(const char *path);
+
+                filename = (char *)rt_malloc(100);
+                strcpy(filename, "/xip/");
+                strcat(filename, _get_path_lastname(cmd.path));
+
                 extern void copy(const char *src, const char *dst);
-                copy(cmd.path, "xip/test");
+                rt_kprintf("filedir:%s\n", filename);//输出最后一个斜杠后的,即文件名
+                copy(cmd.path, filename);
+
+                rt_free(filename);
             
             }
 
@@ -127,6 +136,24 @@ static void system_server_entry(void *parameter)
         
         case 2:
             rt_kprintf("app uninstall %s\n", cmd.path);
+            //卸载用到的是写入空
+            if(cmd.path == RT_NULL)
+                break;
+
+            if(stat(cmd.path, &buf)  == RT_EOK)
+            {
+                filename = (char *)rt_malloc(100);
+                strcpy(filename, "/xip/");
+                strcat(filename, _get_path_lastname(cmd.path));
+
+                if(dfs_file_unlink(filename) < 0)
+                {
+                    rt_kprintf("Delete %s failed\n", filename);
+                }else{
+                    rt_kprintf("Delete %s ok\n", filename);
+                }
+                rt_free(filename);
+            }
             break;
         
         default:
