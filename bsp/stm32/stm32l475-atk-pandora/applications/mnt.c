@@ -7,7 +7,7 @@
 
 #include "dfs_fs.h"
 #include "dfs_posix.h"
-/* ÎÄ¼þÏµÍ³×Ô¶¯¹ÒÔØ±í */
+/* æ–‡ä»¶ç³»ç»Ÿè‡ªåŠ¨æŒ‚è½½è¡¨ */
 const struct dfs_mount_tbl mount_table[]=
 {
   //{"sd0","/","elm",0,0},
@@ -28,10 +28,10 @@ const struct dfs_mount_tbl mount_table[]=
 
 int flash_init()
 {
-    /* ³õÊ¼»¯ fal ¹¦ÄÜ */
+    /* åˆå§‹åŒ– fal åŠŸèƒ½ */
     fal_init();
 	
-    /* ÔÚ spi flash ÖÐÃûÎª "exchip0" µÄ·ÖÇøÉÏ´´½¨Ò»¸ö¿éÉè±¸ */
+    /* åœ¨ spi flash ä¸­åä¸º "exchip0" çš„åˆ†åŒºä¸Šåˆ›å»ºä¸€ä¸ªå—è®¾å¤‡ */
     // struct rt_device *flash_dev = fal_blk_device_create(FS_PARTITION_NAME);
     // if (flash_dev == NULL)
     // {
@@ -42,7 +42,7 @@ int flash_init()
     //     LOG_D("Create a block device on the %s partition of flash successful.", FS_PARTITION_NAME);
     // }
 
-    /* ¹ÒÔØ spi flash ÖÐÃûÎª "dev0" µÄ·ÖÇøÉÏµÄÎÄ¼þÏµÍ³ */
+    /* æŒ‚è½½ spi flash ä¸­åä¸º "dev0" çš„åˆ†åŒºä¸Šçš„æ–‡ä»¶ç³»ç»Ÿ */
     // if (dfs_mount(flash_dev->parent.name, "/dev0", "elm", 0, 0) == 0)
     // {
     //     LOG_I("Filesystem initialized!");
@@ -65,7 +65,7 @@ int bin_mnt_init(void)
 
     flash_init();
 
-    /* ·ÖÇøÉÏ´´½¨¿éÉè±¸ */
+    /* åˆ†åŒºä¸Šåˆ›å»ºå—è®¾å¤‡ */
     struct rt_device *flash_dev = fal_blk_device_create(FS_PARTITION_NAME);
     if (flash_dev == NULL)
     {
@@ -76,7 +76,7 @@ int bin_mnt_init(void)
         LOG_D("Create a block device on the %s partition of flash successful.", FS_PARTITION_NAME);
     }
 
-    /* ¿éÉè±¸ÉÏ¹ÒÔØÎÄ¼þÏµÍ³ */
+    /* å—è®¾å¤‡ä¸ŠæŒ‚è½½æ–‡ä»¶ç³»ç»Ÿ */
     if (dfs_mount(flash_dev->parent.name, "/", "elm", 0, 0) == 0)
     {
         LOG_I("Filesystem initialized!");
@@ -118,6 +118,12 @@ int bin_mnt_init(void)
         }
     }
 
+    if(access("/download/", 0) < 0)
+    {
+        rt_kprintf("create /download/ directory\n");
+        mkdir("/download/", 0);//arg[1] empty
+    }
+
 _xipfsend:
 
 /*
@@ -149,7 +155,7 @@ _xipfsend:
     {
         rt_kprintf("flash:%s create failed!\n","exchip1");
     }else{
-        //ÔÚ×Ö·ûÉè±¸ÉÏ¹ÒÔØxipfs?
+        //åœ¨å­—ç¬¦è®¾å¤‡ä¸ŠæŒ‚è½½xipfs?
         if (dfs_mount("exchip1", "/xip", "xipfs", 0, 0) == 0)
         {
             rt_kprintf("XIP file system initializated!\n");

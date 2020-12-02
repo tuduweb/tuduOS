@@ -23,6 +23,18 @@
 
 struct lwt_pidmap lwt_pid;
 
+/**
+ * 初始化线程系统
+ */
+int lwt_init(void)
+{
+    for(int i = 0; i < LWT_PIDMAP_SIZE; ++i)
+    {
+        lwt_pid.pidmap[i] = RT_NULL;
+    }
+}
+INIT_ENV_EXPORT(lwt_init);
+
 extern void lwp_user_entry(void *args, const void *text, void *r9, void *data);
 void lwt_set_kernel_sp(uint32_t *sp)
 {

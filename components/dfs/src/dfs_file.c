@@ -738,8 +738,8 @@ static void copydir(const char *src, const char *dst)
 
     dfs_file_close(&cpfd);
 }
-
-static const char *_get_path_lastname(const char *path)
+//static const char *_get_path_lastname(const char *path)
+const char *_get_path_lastname(const char *path)
 {
     char *ptr;
     if ((ptr = (char *)strrchr(path, '/')) == NULL)
