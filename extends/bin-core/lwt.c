@@ -693,17 +693,33 @@ rt_err_t sys_thread_startup(rt_thread_t thread)
 
 long list_lwt(void)
 {
-    const char *item_title = "thread";
+    const char *item_title = "LWT";
     struct rt_lwt* lwt = RT_NULL;
     int maxlen = RT_NAME_MAX;
-    rt_kprintf("%-*.s      cmd    suspend thread  pid\n", maxlen, item_title);
-    rt_kprintf(     "  ---------- -------------- -----\n");
+
+    rt_thread_t thread = RT_NULL;
+    rt_list_t* n = RT_NULL;
+
+    //rt_kprintf("%-*.s      cmd    suspend thread  pid\n", maxlen, item_title);
+    rt_kprintf(" pid   cmd     stack_start  stack_size    thread\n", maxlen, item_title);
+    rt_kprintf(" --- --------  -----------  ---------- -------------- -----\n");
 
     for(int pid = 0; pid < lwt_pid.lastpid; pid++)
     {
         if((lwt = lwt_pid.pidmap[pid]) == NULL)
             continue;
-        rt_kprintf(     "%s %d\n",lwt->cmd, pid);
+        n = lwt->t_grp.next;
+
+        rt_kprintf(" %3d %-*.*s  0x%08x   0x%08x\n", pid, maxlen, RT_NAME_MAX, lwt->cmd, lwt->data_entry, lwt->data_size);
+    
+        //from old to new
+        while(n != &lwt->t_grp)
+        {
+            thread = rt_list_entry(n, struct rt_thread, sibling);
+            rt_kprintf("     %-*.*s  0x%08x   0x%08x\n", maxlen, RT_NAME_MAX, thread->name, thread->stack_addr, thread->stack_size);
+            n = n->next;
+        }
+    
     }
     return 0;
 }
