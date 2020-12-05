@@ -383,6 +383,8 @@ void lwt_ref_dec(struct rt_lwt *lwt)
 
             //以上操作需要防止内存溢出
 
+            //TODO: 需要考虑父子关系需不需要处理?如何处理?
+
             rt_lwt_free(lwt);
         }
     }
@@ -431,26 +433,38 @@ pid_t lwt_get_pid(struct rt_lwt *lwt)
 }
 
 //lwt主线程的cleanup程序
-void lwt_cleanup(rt_thread_t tid)
+void lwt_cleanup(rt_thread_t thread)
 {
     struct rt_lwt *lwt;
 
+    rt_kprintf("%s enter lwt cleanup\n", thread->name);
+    //TODO: 要清除上下级关系, 同级关系
+    
+    /**
+     * clean sibling
+     */
+    rt_list_remove(&thread->sibling);
+    
+
     //dbg_log(DBG_INFO, "thread: %s, stack_addr: %08X\n", tid->name, tid->stack_addr);
 
-    lwt = (struct rt_lwt *)tid->lwp;
+    lwt = (struct rt_lwt *)thread->lwp;
 
     lwt_ref_dec(lwt);//引用--,当为0时销毁
 
 }
 
 //lwt子线程临时cleanup程序
-void lwt_son_cleanup(rt_thread_t tid)
+void lwt_son_cleanup(rt_thread_t thread)
 {
     struct rt_lwt *lwt;
 
-    //dbg_log(DBG_INFO, "thread: %s, stack_addr: %08X\n", tid->name, tid->stack_addr);
+    /**
+     * clean sibling
+     */
+    rt_list_remove(&thread->sibling);
 
-    lwt = (struct rt_lwt *)tid->lwp;
+    lwt = (struct rt_lwt *)thread->lwp;
 
     lwt_ref_dec(lwt);//引用--,当为0时销毁
 }
