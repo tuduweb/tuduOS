@@ -597,6 +597,12 @@ int rt_system_signal_init(void)
 }
 
 #include "lwt.h"
+
+/**
+ * 给线程发送信号
+ * 比如 linux 中 kill -9 pid 是杀掉一个线程
+ * 线程里面可能有多个进程,需要全部发送
+ */
 extern struct rt_lwt * lwt_get_lwt_from_pid(pid_t pid);
 int lwt_kill(pid_t pid,int sig)
 {
@@ -604,19 +610,40 @@ int lwt_kill(pid_t pid,int sig)
     struct rt_lwt* lwt = lwt_get_lwt_from_pid(pid);
     rt_thread_t tid = RT_NULL;
 
+    struct rt_list_node *child;
+    rt_thread_t thread = RT_NULL;
+
     if(lwt == RT_NULL)
     {
         rt_kprintf("PID %d not find!\n", pid);
     }else{
+        /**
+         * kill lwt, lwt maybe has many thread.
+         * we need to kill the thead from the newest one to the oldest one
+         * maybe because them are Parent Child Relationship
+         * 
+         * t_grp <=> oldest <=> ... <=> newest <=> t_grp
+         **/
         rt_kprintf("PID %d find!\n", pid);
-        //lwt->t_grp.prev = &thread->sibling;
-        tid = (rt_thread_t)((rt_uint32_t)(lwt->t_grp.prev) - (rt_uint32_t)&(((struct rt_thread *) 0)->sibling));
-        rt_thread_kill(tid, sig);
+        child = lwt->t_grp.prev;
+
+        while(child != &lwt->t_grp)
+        {
+            thread = rt_list_entry(child, struct rt_thread, sibling);
+            rt_kprintf("kill thread %s\n", thread->name);
+            child = child->prev;
+            rt_thread_kill(thread, sig);
+
+        }
+        
+        //rt_kprintf("thread %s\n", thread->name);
+
+        //rt_thread_kill(tid, sig);
     }
 
-    level = rt_hw_interrupt_disable();
+    //level = rt_hw_interrupt_disable();
 
-    rt_hw_interrupt_enable(level);
+    //rt_hw_interrupt_enable(level);
 
     return 0;
 }
@@ -650,3 +677,59 @@ void cmd_killall(int argc,char **argv)
 }
 
 #endif
+
+#define THREAD_PRIORITY         25
+#define THREAD_STACK_SIZE       512
+#define THREAD_TIMESLICE        5
+
+static rt_thread_t tid1 = RT_NULL;
+
+/* 线程 1 的信号处理函数 */
+void thread1_signal_handler(int sig)
+{
+    rt_kprintf("thread1 received signal %d\n", sig);
+}
+
+/* 线程 1 的入口函数 */
+static void thread1_entry(void *parameter)
+{
+    int cnt = 0;
+
+    /* 安装信号 */
+    rt_signal_install(SIGUSR1, thread1_signal_handler);
+    rt_signal_unmask(SIGUSR1);
+
+    /* 运行 10 次 */
+    while (cnt < 10)
+    {
+        /* 线程 1 采用低优先级运行，一直打印计数值 */
+        rt_kprintf("thread1 count : %d\n", cnt);
+
+        cnt++;
+        rt_thread_mdelay(100);
+    }
+}
+
+/* 信号示例的初始化 */
+int signal_sample(void)
+{
+    /* 创建线程 1 */
+    tid1 = rt_thread_create("thread1",
+                            thread1_entry, RT_NULL,
+                            THREAD_STACK_SIZE,
+                            THREAD_PRIORITY, THREAD_TIMESLICE);
+
+    if (tid1 != RT_NULL)
+        rt_thread_startup(tid1);
+
+    rt_thread_mdelay(300);
+
+    /* 发送信号 SIGUSR1 给线程 1 */
+    rt_thread_kill(tid1, SIGUSR1);
+
+    return 0;
+}
+
+/* 导出到 msh 命令列表中 */
+MSH_CMD_EXPORT(signal_sample, signal sample);
+
