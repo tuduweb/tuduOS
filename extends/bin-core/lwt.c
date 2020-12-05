@@ -32,6 +32,7 @@ int lwt_init(void)
     {
         lwt_pid.pidmap[i] = RT_NULL;
     }
+		return 0;
 }
 INIT_ENV_EXPORT(lwt_init);
 
@@ -289,6 +290,11 @@ struct rt_lwt *rt_lwt_new(void)
         lwt->t_grp.next = &lwt->t_grp;
         lwt->ref = 1;//引用次数
 
+        
+        rt_list_init(&lwt->sibling);
+        //lwt->parent = RT_NULL;
+        //lwt->first_child = RT_NULL;
+        
         //lwt->pid = //申请到的pid map中的位置(下标)
         lwt->pid = pid;
         //把这个lwt结构体放入 pid_map相应下标形成映射关系
@@ -370,7 +376,7 @@ void lwt_ref_dec(struct rt_lwt *lwt)
                 close(lwt->fdt.maxfd - 1);//注意不能销毁uart,否则shell失效
             }
             //数据删除
-            lwt->pid;
+            //lwt->pid;
             lwt_pid.pidmap[lwt->pid] = NULL;
             //销毁旗下所有没启动的thread,没启动的thread不会自动退出?
             //启动的也要删除吧
@@ -393,10 +399,10 @@ char* lwt_get_name_from_pid(pid_t pid)
 {
     struct rt_lwt *lwt;
     char *name;
-    if( lwt = lwt_pid.pidmap[pid] )
+    if( lwt == lwt_pid.pidmap[pid] )
     {
         //返回字符最后一次出现的指针
-        if(name = strrchr(lwt->cmd, '/'))
+        if(name == strrchr(lwt->cmd, '/'))
         {
             return name + 1;
         }
@@ -471,6 +477,7 @@ void lwt_thread_entry(void* parameter)
 **/
 int lwt_execve(char *filename, int argc, char **argv, char **envp)
 {
+    //rt_err_t result = RT_EOK;
     struct rt_lwt *lwt;
 
     if (filename == RT_NULL)
@@ -481,7 +488,6 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     //把这里换成新建的函数体 类似于c++中的新建一个实例
     lwt = rt_lwt_new();
 
-    
     if (lwt == RT_NULL)
     {
         return -RT_ENOMEM;
@@ -495,8 +501,7 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     {
         //没清理干净
         rt_free(lwt);
-        goto __fail;
-        //return -ENOMEM;
+        return -ENOMEM;
     }
 
     //为lwt构建空间
@@ -504,8 +509,7 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     {
         //其实需要cleanup
         rt_free(lwt);
-        goto __fail;
-        //return -RT_ERROR;
+        return -RT_ERROR;
     }
 
     //构建线程FD表
@@ -529,7 +533,7 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     if(thread == RT_NULL)
     {
         LOG_E("lwt_execve create thread error!");
-        goto __fail;
+        return -RT_ERROR;
     }
 
     rt_kprintf("LWT kernel stack %p - %p\n", thread->stack_addr, (rt_uint32_t)thread->stack_addr + thread->stack_size);
@@ -540,11 +544,30 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
 
     struct rt_lwt *current_lwt;
     current_lwt = rt_thread_self()->lwp;
-
+    /**
+     * if current thread is in lwt ENV, then execve a lwt
+     * [current lwt]    <=> [old_child_lwt]
+     *                         (sibling)
+     *                      [new_child_lwt]
+     * <oldest thread>      <thread>
+     *      ...
+     * <newest thread>
+     * 
+     * 
+     **/
     if(current_lwt)
     {
-        lwt->sibling = current_lwt->first_child;
-        current_lwt->first_child = lwt;
+        if(current_lwt->first_child == RT_NULL)
+        {
+            current_lwt->first_child = lwt;
+        }else{
+            /**
+             * if some lwt has same parent, they are parallel. Connect by sibling
+             * TODO: 这里有一些问题,比如遍历的时候会丢一个元素..有待解决
+             **/
+            rt_list_insert_before(&current_lwt->first_child->sibling, &lwt->sibling);
+            
+        }
         lwt->parent = current_lwt;
     }
 
@@ -570,13 +593,9 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     //启动进程
     rt_thread_startup(thread);
 
-_success:
     //引用次数
     lwt->ref = 1;
     return lwt_get_pid(lwt);//lwt_to_pid(lwt)
-
-__fail:
-    return -RT_ERROR;
 
 }
 
@@ -611,7 +630,7 @@ rt_thread_t sys_thread_create(const char *name,
                              //rt_uint32_t tick
 {
     struct rt_thread *thread = NULL;
-    struct rt_lwp *lwp = NULL;
+    //struct rt_lwp *lwp = NULL;
 
     //系统调用的是LWP进程
     struct rt_lwt *lwt;

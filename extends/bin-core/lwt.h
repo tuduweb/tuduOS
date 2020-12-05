@@ -22,7 +22,7 @@ struct rt_lwt
 
     struct rt_lwt *parent;
     struct rt_lwt *first_child;
-    struct rt_lwt *sibling;
+    rt_list_t sibling;
     rt_list_t wait_list;
 
     int32_t finish;
