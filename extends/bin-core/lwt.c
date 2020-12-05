@@ -429,7 +429,7 @@ void lwt_cleanup(rt_thread_t tid)
 {
     struct rt_lwt *lwt;
 
-    dbg_log(DBG_INFO, "thread: %s, stack_addr: %08X\n", tid->name, tid->stack_addr);
+    //dbg_log(DBG_INFO, "thread: %s, stack_addr: %08X\n", tid->name, tid->stack_addr);
 
     lwt = (struct rt_lwt *)tid->lwp;
 
@@ -442,7 +442,7 @@ void lwt_son_cleanup(rt_thread_t tid)
 {
     struct rt_lwt *lwt;
 
-    dbg_log(DBG_INFO, "thread: %s, stack_addr: %08X\n", tid->name, tid->stack_addr);
+    //dbg_log(DBG_INFO, "thread: %s, stack_addr: %08X\n", tid->name, tid->stack_addr);
 
     lwt = (struct rt_lwt *)tid->lwp;
 
@@ -552,10 +552,18 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
 
     //初始化: t_grp->(prev/next) = self  t_grp相当于head节点
 
+    /**
+     * Thread Group
+     * <thread> is new object, so thread->sibling is itself
+     * <lwt> is also new object, so lwt->t_grp is empty(or say point itself)
+     * Result: lwt->t_grp <=> thread->sibing <=> t_grp
+     **/
     lwt->t_grp.prev = &thread->sibling;
-    thread->sibling.next = lwt->t_grp.next;
+    thread->sibling.next = &lwt->t_grp;
     lwt->t_grp.next = &thread->sibling;
     thread->sibling.prev = &lwt->t_grp;
+
+    thread->cleanup = lwt_cleanup;
 
     rt_hw_interrupt_enable(IRID);
 
@@ -638,16 +646,35 @@ rt_thread_t sys_thread_create(const char *name,
          * (双向链表)
          * t_grp | init_sibling(old/first) | other_sibling(old) | create_sibling(new)
          */
-        //thread_group链表
-        thread->sibling.next = &lwt->t_grp;//t_group_header
-        thread->sibling.prev = lwt->t_grp.prev;//old_tail
-        lwt->t_grp.prev->next = &thread->sibling;//中间插入
+        
+        /**
+         * Thread Group
+         * if we create a new thread by rt_thread_create in a lwt in user APP, the new thread is parallel to old thread.
+         * t_grp <=> old_thread->sibling ... <=> new_thread_sibling <=> t_grp
+         * 
+         * now <thread> point to itself
+         **/
+        rt_list_insert_before(&lwt->t_grp, &thread->sibling);
+
+        /* for test */
+        struct rt_list_node *n = lwt->t_grp.next;
+        rt_thread_t t = RT_NULL;
+
+        while(n != &lwt->t_grp)
+        {
+            thread = rt_list_entry(n, struct rt_thread, sibling);
+            rt_kprintf("thread %s\n", thread->name);
+            n = n->next;
+            /**
+             * thread thread.b 
+             * thread dmeo_thr
+             **/
+        }
+
 
         rt_hw_interrupt_enable(level);
 
     }
-
-    //lwt->t_grp.next->prev = &thread->
 
     return thread;
 }
