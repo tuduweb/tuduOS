@@ -356,7 +356,9 @@ void lwt_ref_inc(struct rt_lwt *lwt)
 
     rt_hw_interrupt_enable(level);
 }
-
+/**
+ * TODO: 父子级LWT关系处理
+ **/
 void lwt_ref_dec(struct rt_lwt *lwt)
 {
     rt_uint32_t level = rt_hw_interrupt_disable();

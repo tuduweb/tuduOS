@@ -626,7 +626,7 @@ int lwt_kill(pid_t pid,int sig)
          **/
         rt_kprintf("PID %d find!\n", pid);
         child = lwt->t_grp.prev;
-
+        //TODO: 还要考虑 lwt的child要不要一并kill掉, 这些场景是什么?
         while(child != &lwt->t_grp)
         {
             thread = rt_list_entry(child, struct rt_thread, sibling);

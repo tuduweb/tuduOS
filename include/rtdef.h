@@ -630,7 +630,7 @@ struct rt_thread
 #endif
 
     rt_ubase_t  user_data;                             /**< private user data beyond this thread */
-    rt_list_t   sibling;                               /*bin:*/
+    rt_list_t   sibling;                               /*bin:同类关系*/
     void        *user_entry;
     void        *user_stack;
     rt_uint32_t user_stack_size;
