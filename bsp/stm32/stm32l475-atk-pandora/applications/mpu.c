@@ -64,10 +64,14 @@ rt_err_t exception_handle(struct exception_stack_frame *context)
     rt_thread_t thread = rt_thread_self();
     struct rt_lwt* lwp = (struct rt_lwt *)thread->lwp;
 
-
     if(lwp != RT_NULL)
     {
-        LOG_I("process:%s hardfault",thread->name);//这里填入命令参数
+        LOG_E("process:%s hardfault",thread->name);//这里填入命令参数
+        rt_kprintf("lwt text: %p - %p  %d\n", lwp->text_entry, lwp->text_entry + lwp->text_size, lwp->text_size);
+        rt_kprintf("kernel stack %p - %p\n", thread->name, thread->stack_addr, (rt_uint32_t)thread->stack_addr + thread->stack_size);
+        rt_kprintf("app stack %p - %p\n", thread->name, thread->user_stack, (rt_uint32_t)thread->user_stack + thread->user_stack_size);
+
+
         rt_kprintf("psr: 0x%08x\n", context->psr);
 
         rt_kprintf("r00: 0x%08x\n", context->r0);
@@ -76,8 +80,18 @@ rt_err_t exception_handle(struct exception_stack_frame *context)
         rt_kprintf("r03: 0x%08x\n", context->r3);
         rt_kprintf("r12: 0x%08x\n", context->r12);
         rt_kprintf(" lr: 0x%08x\n", context->lr);
+
+        if((rt_uint32_t)lwp->text_entry <= context->lr && context->lr <= (rt_uint32_t)lwp->text_entry + lwp->text_size)
+        {
+            rt_kprintf("lr offset: 0x%08x\n", context->lr - (rt_uint32_t)lwp->text_entry);
+        }
+
         rt_kprintf(" pc: 0x%08x\n", context->pc);
 
+        if((rt_uint32_t)lwp->text_entry <= context->pc && context->pc <= (rt_uint32_t)lwp->text_entry + lwp->text_size)
+        {
+            rt_kprintf("pc offset: 0x%08x\n", context->pc - (rt_uint32_t)lwp->text_entry);
+        }
 
         uint8_t* text_entry = lwp->text_entry;
         //判断一下 如果这里运行的是用户态app,那么打印app入口地址等
@@ -90,12 +104,12 @@ rt_err_t exception_handle(struct exception_stack_frame *context)
         //执行调度器
         //rt_schedule();
 
-        rt_hw_interrupt_enable(level);
+        //rt_hw_interrupt_enable(level);
         return -1;
     }else{
         //内核发生错误 系统终止 无法挽回
         LOG_E("thread:%s memmanage fault in kernel",thread);
-        rt_hw_interrupt_enable(level);
+        //rt_hw_interrupt_enable(level);
         return 0;
     }
 
@@ -145,7 +159,7 @@ void bin_lwt_mpu_switch(rt_thread_t from, rt_thread_t to)
 
 static void mpu_test_entry(void *parameter)
 {
-    int* testPointer = (int *)0x20010000;
+    int* testPointer = (int *)0x20012000;
 
     *testPointer = 1234;
 
@@ -162,10 +176,11 @@ int mpu_test(int argc, char **argv)
 
     }else{
         MPU_Set_Protection(0x20000000, MPU_REGION_SIZE_1MB, MPU_REGION_NUMBER0, MPU_REGION_FULL_ACCESS);
-        //MPU_Set_Protection(0x20010000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER1, MPU_REGION_NO_ACCESS);
+        MPU_Set_Protection(0x08000000, MPU_REGION_SIZE_32MB, MPU_REGION_NUMBER1, MPU_REGION_FULL_ACCESS);
+        //MPU_Set_Protection(0x20012000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER1, MPU_REGION_NO_ACCESS);
         //
     }
-		
+
     return 0;
 }
 
