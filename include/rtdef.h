@@ -1173,4 +1173,7 @@ struct bin_ipc_msg
 };
 typedef struct bin_ipc_msg *bin_ipc_msg_t;
 
+#define struct_offset(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+
+
 #endif

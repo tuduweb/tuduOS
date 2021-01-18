@@ -16,7 +16,6 @@
 struct _lwt_shm lwt_shm;
 #define LWT_SHM_SIZE 0x4000
 
-#define struct_offset(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 
 //#define get_relation_app(ADDR)  ((struct shm_app*)(ADDR - struct_offset(struct shm_relation, app_node) + struct_offset(struct shm_relation, app) ))
 //#define get_relation_mem(ADDR)  ((struct shm_mem*)(ADDR - struct_offset(struct shm_relation, mem_node) + struct_offset(struct shm_relation, mem) ))
