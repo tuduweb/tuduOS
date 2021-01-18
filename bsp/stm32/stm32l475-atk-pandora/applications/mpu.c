@@ -31,9 +31,21 @@ int MPU_Set_Protection(rt_uint32_t baseaddr, rt_uint32_t size, rt_uint32_t rnum,
     return 0;
 }
 
+MPU_Region_InitTypeDef MPU_Initure;
 static int MPU_Init(void)
 {
-
+    //rt_uint32_t baseaddr, rt_uint32_t size, rt_uint32_t rnum, rt_uint32_t ap
+    MPU_Initure.Enable=MPU_REGION_DISABLE;			        //使能该保护区域 
+    //MPU_Initure.Number=rnum;			                    //设置保护区域
+    //MPU_Initure.BaseAddress=baseaddr;	                    //设置基址
+    //MPU_Initure.Size=size;				                    //设置保护区域大小
+    MPU_Initure.SubRegionDisable=0X00;                      //禁止子区域
+    MPU_Initure.TypeExtField=MPU_TEX_LEVEL0;                //设置类型扩展域为level0
+    //MPU_Initure.AccessPermission=(rt_uint8_t)ap;		            //设置访问权限,
+    MPU_Initure.DisableExec=MPU_INSTRUCTION_ACCESS_ENABLE;	//允许指令访问(允许读取指令)
+    MPU_Initure.IsShareable=MPU_ACCESS_NOT_SHAREABLE;       //禁止共用
+    MPU_Initure.IsCacheable=MPU_ACCESS_NOT_CACHEABLE;       //禁止cache  
+    MPU_Initure.IsBufferable=MPU_ACCESS_BUFFERABLE;         //允许缓冲
     //MPU_Set_Protection(0x40000000, MPU_REGION_SIZE_512MB, MPU_REGION_NUMBER2, MPU_REGION_FULL_ACCESS);
     //HAL_NVIC_SetPriority(PendSV_IRQn, 0, 2);
     //HAL_NVIC_SetPriority(MemoryManagement_IRQn, 1, 2);
@@ -138,19 +150,116 @@ void MemManage_Main(struct exception_stack_frame * sp)
 
 }
 
+
+
+// void HAL_MPU_ConfigRegion(MPU_Region_InitTypeDef *MPU_Init)
+// {
+//   /* Check the parameters */
+//   assert_param(IS_MPU_REGION_NUMBER(MPU_Init->Number));
+//   assert_param(IS_MPU_REGION_ENABLE(MPU_Init->Enable));
+
+//   /* Set the Region number */
+//   MPU->RNR = MPU_Init->Number;
+
+//   if ((MPU_Init->Enable) != RESET)
+//   {
+//     /* Check the parameters */
+//     assert_param(IS_MPU_INSTRUCTION_ACCESS(MPU_Init->DisableExec));
+//     assert_param(IS_MPU_REGION_PERMISSION_ATTRIBUTE(MPU_Init->AccessPermission));
+//     assert_param(IS_MPU_TEX_LEVEL(MPU_Init->TypeExtField));
+//     assert_param(IS_MPU_ACCESS_SHAREABLE(MPU_Init->IsShareable));
+//     assert_param(IS_MPU_ACCESS_CACHEABLE(MPU_Init->IsCacheable));
+//     assert_param(IS_MPU_ACCESS_BUFFERABLE(MPU_Init->IsBufferable));
+//     assert_param(IS_MPU_SUB_REGION_DISABLE(MPU_Init->SubRegionDisable));
+//     assert_param(IS_MPU_REGION_SIZE(MPU_Init->Size));
+
+//     MPU->RBAR = MPU_Init->BaseAddress;
+//     MPU->RASR = ((uint32_t)MPU_Init->DisableExec        << MPU_RASR_XN_Pos)   |
+//                 ((uint32_t)MPU_Init->AccessPermission   << MPU_RASR_AP_Pos)   |
+//                 ((uint32_t)MPU_Init->TypeExtField       << MPU_RASR_TEX_Pos)  |
+//                 ((uint32_t)MPU_Init->IsShareable        << MPU_RASR_S_Pos)    |
+//                 ((uint32_t)MPU_Init->IsCacheable        << MPU_RASR_C_Pos)    |
+//                 ((uint32_t)MPU_Init->IsBufferable       << MPU_RASR_B_Pos)    |
+//                 ((uint32_t)MPU_Init->SubRegionDisable   << MPU_RASR_SRD_Pos)  |
+//                 ((uint32_t)MPU_Init->Size               << MPU_RASR_SIZE_Pos) |
+//                 ((uint32_t)MPU_Init->Enable             << MPU_RASR_ENABLE_Pos);
+//   }
+//   else
+//   {
+//     MPU->RBAR = 0x00;
+//     MPU->RASR = 0x00;
+//   }
+// }
+
+// typedef struct
+// {
+//   __IM  uint32_t TYPE;                   /*!< Offset: 0x000 (R/ )  MPU Type Register */
+//   __IOM uint32_t CTRL;//MPU->CTRL = MPU_Control | MPU_CTRL_ENABLE_Msk;                   /*!< Offset: 0x004 (R/W)  MPU Control Register */
+//   __IOM uint32_t RNR;//MPU->RNR = MPU_Init->Number;                    /*!< Offset: 0x008 (R/W)  MPU Region RNRber Register */
+//   __IOM uint32_t RBAR;//MPU->RBAR = MPU_Init->BaseAddress;                   /*!< Offset: 0x00C (R/W)  MPU Region Base Address Register */
+//   __IOM uint32_t RASR;//MPU->RASR = {CONFIG}                   /*!< Offset: 0x010 (R/W)  MPU Region Attribute and Size Register */
+// } MPU_Type;
 /**
  * https://www.keil.com/pack/doc/cmsis/Core/html/group__mpu__functions.html
  */
-void bin_lwt_mpu_switch(rt_thread_t from, rt_thread_t to)
+void bin_lwt_mpu_switch(rt_uint32_t from_sp, rt_uint32_t to_sp)
 {
+    /**
+     * 在LWT线程中需要切换MPU保护
+     * 
+     */
     //HAL_MPU_Disable();
+    //TODO:首次from会为空 这里的可以优化
+    if(from_sp == NULL) return;
+    rt_thread_t from = (struct rt_thread*)(from_sp - struct_offset(struct rt_thread, sp) );
+    rt_thread_t to = (struct rt_thread*)(to_sp - struct_offset(struct rt_thread, sp) );
+
+    MPU_Region_InitTypeDef MPU_Initure;
 
     if(to->lwp != NULL)
     {
         //MPU_switch
-    }else if(1)
+        //切换过去的是LWP线程,那么需要启动隔离相关的东西..
+        //判断from和to是不是同一个东西
+        rt_kprintf("swtich from %s to LWT %s\r\n", from->name, to->name);
+
+    }else if((from->lwp != NULL))
     {
-        //clean
+        //普通线程..
+        rt_kprintf("swtich from LWT %s to %s\r\n", from->name, to->name);
+    }else{
+        //from/to not lwp thread
+        // MPU_Set_Protection(0x08000000, MPU_REGION_SIZE_512KB, MPU_REGION_NUMBER0, MPU_REGION_FULL_ACCESS);
+        // //SRAM1 RAM:128kb
+        // MPU_Set_Protection(0x20000000, MPU_REGION_SIZE_128KB, MPU_REGION_NUMBER1, MPU_REGION_FULL_ACCESS);
+        // //Peripherals:
+        // MPU_Set_Protection(0x40000000, MPU_REGION_SIZE_512MB, MPU_REGION_NUMBER2, MPU_REGION_FULL_ACCESS);
+        // //Cortex-M4 Internal Peripherals
+        // MPU_Set_Protection(0xE0000000, MPU_REGION_SIZE_512MB, MPU_REGION_NUMBER3, MPU_REGION_FULL_ACCESS);
+    
+        //TODO:改成寄存器操作
+        MPU_Initure.BaseAddress=0x08000000;//设置基址
+        MPU_Initure.Size=MPU_REGION_SIZE_512KB;//设置保护区域大小
+        MPU_Initure.Number=MPU_REGION_NUMBER0;//设置保护区域
+        MPU_Initure.AccessPermission=(rt_uint8_t)MPU_REGION_FULL_ACCESS;//设置访问权限,
+        HAL_MPU_ConfigRegion(&MPU_Initure);//配置MPU
+
+        MPU_Initure.BaseAddress=0x20000000;//设置基址
+        MPU_Initure.Size=MPU_REGION_SIZE_128KB;//设置保护区域大小
+        MPU_Initure.Number=MPU_REGION_NUMBER1;//设置保护区域
+        HAL_MPU_ConfigRegion(&MPU_Initure);//配置MPU
+
+        MPU_Initure.BaseAddress=0x40000000;//设置基址
+        MPU_Initure.Size=MPU_REGION_SIZE_512MB;//设置保护区域大小
+        MPU_Initure.Number=MPU_REGION_NUMBER2;//设置保护区域
+        HAL_MPU_ConfigRegion(&MPU_Initure);//配置MPU
+
+        MPU_Initure.BaseAddress=0xE0000000;//设置基址
+        MPU_Initure.Size=MPU_REGION_SIZE_512MB;//设置保护区域大小
+        MPU_Initure.Number=MPU_REGION_NUMBER3;//设置保护区域
+        HAL_MPU_ConfigRegion(&MPU_Initure);//配置MPU
+        HAL_MPU_Enable(MPU_PRIVILEGED_DEFAULT);			        //开启MPU//MPU_PRIVILEGED_DEFAULT:表示使能了背景區，特權級模式可以正常訪問任何未使能MPU的區域。
+
     }
 
 
@@ -175,8 +284,14 @@ int mpu_test(int argc, char **argv)
             rt_thread_startup(tid1);
 
     }else{
-        MPU_Set_Protection(0x20000000, MPU_REGION_SIZE_1MB, MPU_REGION_NUMBER0, MPU_REGION_FULL_ACCESS);
-        MPU_Set_Protection(0x08000000, MPU_REGION_SIZE_32MB, MPU_REGION_NUMBER1, MPU_REGION_FULL_ACCESS);
+        //Flash memory:512kb
+        MPU_Set_Protection(0x08000000, MPU_REGION_SIZE_512KB, MPU_REGION_NUMBER0, MPU_REGION_FULL_ACCESS);
+        //SRAM1 RAM:128kb
+        MPU_Set_Protection(0x20000000, MPU_REGION_SIZE_128KB, MPU_REGION_NUMBER1, MPU_REGION_FULL_ACCESS);
+        //Peripherals:
+        MPU_Set_Protection(0x40000000, MPU_REGION_SIZE_512MB, MPU_REGION_NUMBER2, MPU_REGION_FULL_ACCESS);
+        //Cortex-M4 Internal Peripherals
+        MPU_Set_Protection(0xE0000000, MPU_REGION_SIZE_512MB, MPU_REGION_NUMBER3, MPU_REGION_FULL_ACCESS);
         //MPU_Set_Protection(0x20012000, MPU_REGION_SIZE_1KB, MPU_REGION_NUMBER1, MPU_REGION_NO_ACCESS);
         //
     }

@@ -493,6 +493,7 @@ void lwt_thread_entry(void* parameter)
 **/
 int lwt_execve(char *filename, int argc, char **argv, char **envp)
 {
+    //TODO:需要将text段,stack/heap段对齐?,也就是要让mpu能保护这些东西
     //rt_err_t result = RT_EOK;
     struct rt_lwt *lwt;
 
@@ -536,6 +537,7 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     if(d)
     {
         fd = fd - DFS_FD_OFFSET;
+        //这里申请的东西.需要确认在LWT中需要使用吗?
         struct dfs_fd **fdt = (struct dfs_fd **)rt_malloc( (fd+1) * sizeof(struct dfs_fd*) );
         lwt->fdt.fds = fdt;
         fdt[fd] = d;

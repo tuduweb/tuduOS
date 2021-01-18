@@ -87,7 +87,7 @@ _reswitch
 ; psr, pc, lr, r12, r3, r2, r1, r0 are pushed into [from] stack
 PendSV_Handler   PROC
     EXPORT PendSV_Handler
-
+    IMPORT bin_lwt_mpu_switch
     ; disable interrupt to protect context switch
     MRS     r2, PRIMASK
     CPSID   I
@@ -150,6 +150,13 @@ switch_to_thread
     BICNE   lr, lr, #0x10           ; lr &= ~(1 << 4), set FPCA.
     ENDIF
     ;mpu switch
+    PUSH    {R0-R3,R12,LR}
+    LDR     r1, =rt_interrupt_from_thread
+    LDR     r0, [r1]
+    LDR     r2, =rt_interrupt_to_thread
+    LDR     r1, [r2]
+    BL      bin_lwt_mpu_switch
+    POP     {R0-R3,R12,LR}
 
 pendsv_exit
     ; restore interrupt
