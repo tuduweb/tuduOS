@@ -178,6 +178,7 @@ SVC_Case0
 
 SVC_Case1
     ;B       userApp_entry       ;只会改变PC;简单的程序跳转，跳转到到目标标号处执行。
+    ;这是是要发生切换了..?
     BL      userApp_entry       ;带链接程序跳转，也就是要带返回地址。在发生跳转前，将当前PC-4保存到R14中。;也就是带LR
 Table_exit
     POP     {LR}                ; 0xFFFFFFED
