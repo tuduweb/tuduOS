@@ -126,6 +126,7 @@ static void system_server_entry(void *parameter)
 
                     extern void copy(const char *src, const char *dst);
                     rt_kprintf("filedir:%s\n", filename);//输出最后一个斜杠后的,即文件名
+                    //这里把download下的文件复制到xip下..
                     copy(cmd.path, filename);
 
                     rt_free(filename);
@@ -190,7 +191,9 @@ int system_server_init(void)
 INIT_ENV_EXPORT(system_server_init);
 
 
-
+/**
+ * 这个文件下的程序与comm下的不一样
+ */
 struct custom_ctx
 {
     struct rym_ctx parent;
@@ -213,7 +216,7 @@ static enum rym_code _ymodem_on_begin(
     strcpy(cctx->fpath, "/download");//保存到/download目录下
     strcat(cctx->fpath, "/");
     strcat(cctx->fpath, (char*)buf);
-
+    //download目录下
     cctx->fd = open(cctx->fpath, O_CREAT | O_WRONLY | O_TRUNC, 0);
     if (cctx->fd < 0)
     {
@@ -354,18 +357,25 @@ int server_app(int argc, char* argv[])
     
     }else{
 
-        int fd;
-        fd = bin_channel_open("server", 0);
+        // int fd;
+        // fd = bin_channel_open("server", 0);
 
-        struct bin_channel_msg msg;
+        // struct bin_channel_msg msg;
 
-        cmd.type = 2;
-        cmd.path = "test";
-        msg.u.b.buf = &cmd;
+        // cmd.type = 2;
+        // cmd.path = "test";
+        // msg.u.b.buf = &cmd;
 
-        bin_channel_send(fd, &msg, 1);
-        //need reply 阻塞
-        bin_channel_close(fd);
+        // bin_channel_send(fd, &msg, 1);
+        // //need reply 阻塞
+        // bin_channel_close(fd);
+
+        int fd = open("/download/123.txt", 0 ,O_RDWR);
+        for(int i = 0; i < 3; ++i)
+            write(fd, "1234", 5);
+        
+        close(fd);
+
 
     }
     return 0;

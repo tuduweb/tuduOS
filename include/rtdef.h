@@ -630,7 +630,7 @@ struct rt_thread
 #endif
 
     rt_ubase_t  user_data;                             /**< private user data beyond this thread */
-    rt_list_t   sibling;                               /*bin:*/
+    rt_list_t   sibling;                               /*bin:同类关系*/
     void        *user_entry;
     void        *user_stack;
     rt_uint32_t user_stack_size;
@@ -1172,5 +1172,8 @@ struct bin_ipc_msg
     struct bin_channel_msg msg;
 };
 typedef struct bin_ipc_msg *bin_ipc_msg_t;
+
+#define struct_offset(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
+
 
 #endif

@@ -1,6 +1,8 @@
 #ifndef __BIN_LIGHTWEIGHTTASK__
 #define __BIN_LIGHTWEIGHTTASK__
 
+#include "mpu.h"
+
 #define LWT_MAGIC           'LWT'
 
 #define LWP_TYPE_FIX_ADDR   0x01
@@ -22,7 +24,7 @@ struct rt_lwt
 
     struct rt_lwt *parent;
     struct rt_lwt *first_child;
-    struct rt_lwt *sibling;
+    rt_list_t sibling;
     rt_list_t wait_list;
 
     int32_t finish;
@@ -52,6 +54,7 @@ struct rt_lwt
 
     //其他
     rt_list_t object_list;
+    struct lwt_mpu_info mpu_infos[4];
 };
 
 struct lwt_header

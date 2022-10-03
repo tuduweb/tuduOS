@@ -102,5 +102,5 @@ rt_err_t exception_handle(struct exception_stack_frame *context)
 void bin_mpu_init()
 {
     bin_mpu_disable();
-    bin_mpu_enable();
+    //bin_mpu_enable();
 }

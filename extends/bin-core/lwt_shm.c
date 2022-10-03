@@ -16,7 +16,6 @@
 struct _lwt_shm lwt_shm;
 #define LWT_SHM_SIZE 0x4000
 
-#define struct_offset(TYPE, MEMBER) ((size_t) &((TYPE *)0)->MEMBER)
 
 //#define get_relation_app(ADDR)  ((struct shm_app*)(ADDR - struct_offset(struct shm_relation, app_node) + struct_offset(struct shm_relation, app) ))
 //#define get_relation_mem(ADDR)  ((struct shm_mem*)(ADDR - struct_offset(struct shm_relation, mem_node) + struct_offset(struct shm_relation, mem) ))
@@ -626,9 +625,9 @@ void *lwt_shm_alloc(int size)
     }
 
     //新建
-    struct shm_mem_ref* mem_ref = get_shm_mem_ref(app, 0);
+    struct shm_mem_ref* mem_ref = get_shm_mem_ref(app, RT_NULL);//新增模式
     
-    struct shm_mem* mem = get_shm_mem(&lwt_shm);
+    struct shm_mem* mem = get_shm_mem(&lwt_shm);// get `mem_item`
     struct shm_relation* relation = get_shm_relation(&lwt_shm);
 
     //判断是否成功
@@ -642,10 +641,10 @@ void *lwt_shm_alloc(int size)
             mem_ref->addr = mem->addr;
             mem_ref->ref = 1;
             //建立关系
-            relation->app = app;
-            relation->mem = mem;
-            //mem->app_node => relation->app_node => ..
-            rt_list_insert_after(&mem->app_node, &relation->app_node);
+            relation->app = app;// shm_app
+            relation->mem = mem;// shm_mem
+            //mem->app_node <-> relation->app_node <-> ..
+            rt_list_insert_after(&mem->app_node, &relation->app_node);// insert `&relation->app_node` to `mem->app_node`
             rt_list_insert_after(&app->mem_node, &relation->mem_node);
             return (void *)mem->addr;
         }

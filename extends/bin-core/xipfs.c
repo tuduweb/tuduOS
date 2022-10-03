@@ -335,7 +335,7 @@ int dfs_xipfs_open(struct dfs_fd *fd){
     // return RT_EOK;
 
     //打开操作flag = 0
-    //下面的条件还是有问题的..
+    //下面的条件还是有问题的.. 2022: 条件存在bug，不管是什么操作，都会进入第一个逻辑，疑似是fd->path的关系。
     //if( !fd->path[1] ||  fd->flags & O_DIRECTORY || fd->flags == 0x0)//获得一个能表示文件在文件系统中位置的文件描述符
     if( !fd->path[1] ||  !(fd->flags & O_PATH))//获得一个能表示文件在文件系统中位置的文件描述符
     {
@@ -594,6 +594,9 @@ int dfs_xipfs_write(struct dfs_fd *fd, const void *buf, size_t len)
     //把类型强制转换
     env_dev = (ef_env_dev_t)fd->data;
 
+    rt_kprintf("dfs_xipfs_write fd->size:%d\n", fd->size);
+
+
     //取得锁的控制权
     if( !rt_mutex_take(ef_write_lock, 0) )
     {
@@ -636,7 +639,7 @@ int dfs_xipfs_write(struct dfs_fd *fd, const void *buf, size_t len)
             }
 
         }else{
-            //size == 0 文件夹形式 那么写入环境变量!?
+            //size == 0 新增操作
             int errCode = ef_set_env_blob(fd->path + 1, buf, len);
             if(!errCode)
             {
@@ -702,7 +705,7 @@ int dfs_xipfs_getdents(struct dfs_fd *fd, struct dirent *dirp, uint32_t count)
 
         //从env_dev中获取目录信息 input: dir
         //env_get_fs_getdents
-        if( env_get_fs_getdents(&dir->env, &dir->sec_addr) == false)
+        if(env_get_fs_getdents(&dir->env, &dir->sec_addr) == false)
             return 0;//新增一个跳出条件,用来测试
         //rt_kprintf("sector_addr 0x%x\n", sec_addr);
 
@@ -713,7 +716,7 @@ int dfs_xipfs_getdents(struct dfs_fd *fd, struct dirent *dirp, uint32_t count)
         rt_strncpy(d->d_name, dir->env.name, dir->env.name_len);//拷贝名字
         d->d_name[d->d_namlen] = 0;//添加结束符
 
-        index ++;
+        index++;
         //跟传入getdents函数中的count有关,逻辑就是返回n个struct dirent
         if(index * sizeof(struct dirent) >= count)
             break;
