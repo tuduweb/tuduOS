@@ -106,4 +106,9 @@ struct _lwt_shm
 };
 typedef struct _lwt_shm* lwt_shm_t;
 
+
+rt_err_t lwt_shm_retain(void* addr);
+void *lwt_shm_alloc(int size);
+rt_err_t lwt_shm_free(void* addr);
+
 #endif

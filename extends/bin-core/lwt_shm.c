@@ -10,7 +10,7 @@
  * 共享内存
  */
 
-#define LWT_SHM_DEBUG 1
+#define LWT_SHM_DEBUG 0
 
 
 struct _lwt_shm lwt_shm;
@@ -604,6 +604,9 @@ struct shm_mem_ref* get_shm_mem_ref(struct shm_app* app, void* addr)
 void *lwt_shm_alloc(int size)
 {
     struct shm_app* app;
+
+    rt_kprintf("call alloc %s\r\n", rt_thread_self()->name);
+
 #if LWT_SHM_DEBUG == 1
     app = find_shm_app(&lwt_shm, (void *)0x20000800);//查找当前的LWP有没有APP
 #else
@@ -620,7 +623,7 @@ void *lwt_shm_alloc(int size)
 #if LWT_SHM_DEBUG == 1
         app->lwp_addr = 0x20000800;//(rt_uint32_t)rt_thread_self()->lwp;
 #else
-        app->lwp_addr = (rt_uint32_t)rt_thread_self()->lwp;
+        app->lwp_addr = (rt_uint32_t)rt_thread_self()->lwp; // when the thread is tshell, lwp_addr is empty
 #endif
     }
 
@@ -808,6 +811,8 @@ rt_err_t lwt_shm_free(void* addr)
     return RT_EOK;
 }
 
+
+/* bmem test start */
 void shm_malloc_test(int argc,char* argv[])
 {
     rt_uint32_t addr = 0;
@@ -834,6 +839,7 @@ void shm_free_test(int argc,char* argv[])
     }
 }
 MSH_CMD_EXPORT(shm_free_test, free!);
+/* bmem test end */
 
 void sys_alloc_test(int argc,char* argv[])
 {
@@ -845,7 +851,9 @@ void sys_alloc_test(int argc,char* argv[])
 
         rt_kprintf("shm retain\r\n");
 
-        lwt_shm_retain((void *)addr);
+        rt_err_t res = lwt_shm_retain((void *)addr);
+
+        rt_kprintf("retain result %d\r\n", res);
 
     }
 
@@ -857,7 +865,7 @@ void print_shm_app(lwt_shm_t lwt_shm, void *app)
     struct shm_app_tab* app_tab_item;
     struct shm_app* app_item;
 
-    rt_kprintf("lwt_addr\tusn\tnode\r\n");
+    rt_kprintf("l_addr\tusn\tnode\r\n");
 
 
     if(app == RT_NULL)
@@ -930,7 +938,7 @@ void print_shm_mem(lwt_shm_t lwt_shm, void *mem)
                     for(struct rt_list_node* list_node = mem_item->app_node.next; list_node != &mem_item->app_node; list_node = list_node->next)
                     {
                         struct shm_app* app_item = *(struct shm_app**)((rt_base_t)list_node - sizeof(struct shm_app *));//在计算出的地址处,取值,得到的是指针!所以计算处的类型为**
-                        rt_kprintf("[%d]\t%x\t%d\t%x \r\n", pos++, app_item->lwp_addr, app_item->use_num, app_item->mem_node);
+                        rt_kprintf("\t[%d]\t%x\t%d\t%x \r\n", pos++, app_item->lwp_addr, app_item->use_num, app_item->mem_node);
                     }
                 }
             }

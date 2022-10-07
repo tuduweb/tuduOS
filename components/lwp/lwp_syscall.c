@@ -305,6 +305,29 @@ rt_err_t sys_mb_recv(rt_mailbox_t mb, rt_ubase_t *value, rt_int32_t timeout)
 }
 
 
+#include "lwt_shm.h"
+
+/*
+rt_err_t lwt_shm_retain(void* addr);
+void *lwt_shm_alloc(int size);
+rt_err_t lwt_shm_free(void* addr);
+*/
+
+rt_err_t sys_lwt_shm_retain(void* addr)
+{
+    return lwt_shm_retain(addr);
+}
+
+void *sys_lwt_shm_alloc(int size)
+{
+    return lwt_shm_alloc(size);
+}
+
+rt_err_t sys_lwt_shm_free(void* addr)
+{
+    return lwt_shm_free(addr);
+}
+
 //浮动一下,从0x60开始吧
 const static void* func_table2[] =
 {
@@ -318,6 +341,10 @@ const static void* func_table2[] =
     (void *)rt_mb_recv,
 
     (void *)rt_kprintf,
+
+    (void *)sys_lwt_shm_alloc,
+    (void *)sys_lwt_shm_free,
+    (void *)sys_lwt_shm_retain,
 };
 
 
