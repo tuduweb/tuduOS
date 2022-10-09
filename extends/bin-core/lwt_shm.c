@@ -818,6 +818,28 @@ rt_err_t lwt_shm_free(void* addr)
     return RT_EOK;
 }
 
+/**
+ * free all shm related to app
+ */
+rt_err_t shm_free_app_by_threadAddr(void* thread_addr) {
+    struct shm_app* app = find_shm_app(&lwt_shm, thread_addr);
+    rt_thread_t thread = (rt_thread_t)thread_addr;
+    if(app != RT_NULL) {
+        rt_kprintf("attempt to free app %s\r\n", thread->name);
+        return RT_EOK;
+    }
+
+    return -RT_ERROR;
+}
+
+rt_err_t shm_free_app_by_lwtAddr(void* lwt_addr) {
+    rt_uint32_t offset = struct_offset(struct rt_thread, lwp);
+    rt_uint32_t addr = (rt_uint32_t)lwt_addr - offset;
+    return shm_free_app_by_threadAddr((void *)addr);
+}
+
+
+
 
 /* bmem test start */
 void shm_malloc_test(int argc,char* argv[])

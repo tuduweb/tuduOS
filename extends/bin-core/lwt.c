@@ -356,13 +356,16 @@ void lwt_ref_inc(struct rt_lwt *lwt)
 
     rt_hw_interrupt_enable(level);
 }
+
+extern rt_err_t shm_free_app_by_lwtAddr(void* lwt_addr);
 /**
  * TODO: 父子级LWT关系处理
  **/
-void lwt_ref_dec(struct rt_lwt *lwt)
+void lwt_ref_dec(struct rt_lwt **lwt_ptr)
 {
     rt_uint32_t level = rt_hw_interrupt_disable();
-    
+    struct rt_lwt* lwt = *lwt_ptr;
+
     if(lwt->ref > 0)
     {
         lwt->ref--;
@@ -384,7 +387,7 @@ void lwt_ref_dec(struct rt_lwt *lwt)
             //启动的也要删除吧
 
             //以上操作需要防止内存溢出
-
+            shm_free_app_by_lwtAddr(lwt_ptr);
             //TODO: 需要考虑父子关系需不需要处理?如何处理?
 
             rt_lwt_free(lwt);
@@ -452,7 +455,7 @@ void lwt_cleanup(rt_thread_t thread)
 
     lwt = (struct rt_lwt *)thread->lwp;
 
-    lwt_ref_dec(lwt);//引用--,当为0时销毁
+    lwt_ref_dec((void *)(&thread->lwp));//引用--,当为0时销毁
 
 }
 
@@ -468,7 +471,7 @@ void lwt_son_cleanup(rt_thread_t thread)
 
     lwt = (struct rt_lwt *)thread->lwp;
 
-    lwt_ref_dec(lwt);//引用--,当为0时销毁
+    lwt_ref_dec((void *)(&thread->lwp));//引用--,当为0时销毁
 }
 
 
