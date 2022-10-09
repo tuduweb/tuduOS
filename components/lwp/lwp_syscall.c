@@ -339,6 +339,23 @@ rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
 
 */
 
+
+void va_printf(const char *fmt, va_list args) {
+    rt_size_t length;
+    static char rt_log_buf[RT_CONSOLEBUF_SIZE];
+    /* the return value of vsnprintf is the number of bytes that would be
+     * written to buffer had if the size of the buffer been sufficiently
+     * large excluding the terminating null byte. If the output string
+     * would be larger than the rt_log_buf, we have to adjust the output
+     * length. */
+    length = rt_vsnprintf(rt_log_buf, sizeof(rt_log_buf) - 1, fmt, args);
+    if (length > RT_CONSOLEBUF_SIZE - 1)
+        length = RT_CONSOLEBUF_SIZE - 1;
+
+    rt_kprintf(rt_log_buf);
+}
+
+
 //浮动一下,从0x60开始吧
 const static void* func_table2[] =
 {
@@ -351,7 +368,7 @@ const static void* func_table2[] =
     (void *)rt_mb_send,
     (void *)rt_mb_recv,
 
-    (void *)rt_kprintf,//7
+    (void *)va_printf,//7
 
     (void *)sys_lwt_shm_alloc,//0x68
     (void *)sys_lwt_shm_free,
