@@ -607,12 +607,12 @@ void *lwt_shm_alloc(int size)
 {
     struct shm_app* app;
 
-    rt_kprintf("call alloc %s\r\n", rt_thread_self()->name);
+    rt_kprintf("call alloc %s\n", rt_thread_self()->name);
 
 #if LWT_SHM_DEBUG == 1
     app = find_shm_app(&lwt_shm, (void *)0x20000800);//查找当前的LWP有没有APP
 #else
-    app = find_shm_app(&lwt_shm, rt_thread_self()->lwp);
+    app = find_shm_app(&lwt_shm, rt_thread_self());
 #endif
     if(app == RT_NULL)
     {
@@ -659,6 +659,8 @@ void *lwt_shm_alloc(int size)
         }
     }
 
+    LOG_E("%s can't alloc ,ret RT_NULL\n", rt_thread_self()->name);
+
     return RT_NULL;
 }
 
@@ -678,7 +680,7 @@ rt_err_t lwt_shm_retain(void* addr)
 #if LWT_SHM_DEBUG == 1
         app = find_shm_app(&lwt_shm, (void *)0x20000808);//查找当前的LWP有没有APP
 #else
-        app = find_shm_app(&lwt_shm, rt_thread_self()->lwp);//查找当前的LWP有没有APP
+        app = find_shm_app(&lwt_shm, rt_thread_self());//查找当前的LWP有没有APP
 #endif
         /* not find, so need to new one */
         if(app == RT_NULL)
@@ -915,7 +917,7 @@ void print_shm_app(lwt_shm_t lwt_shm, void *app)
     struct shm_app_tab* app_tab_item;
     struct shm_app* app_item;
 
-    rt_kprintf("l_addr\tusn\tnode\r\n");
+    rt_kprintf("name\t use\t node\r\n");
 
 
     if(app == RT_NULL)
@@ -932,7 +934,8 @@ void print_shm_app(lwt_shm_t lwt_shm, void *app)
                 app_item = app_tab_item->tab + i;
                 if(app_item->use_num != 0)
                 {
-                    rt_kprintf("%x\t%d\t%x \r\n", app_item->lwp_addr, app_item->use_num, app_item->mem_node);
+                    rt_thread_t thread = (rt_thread_t)app_item->lwp_addr;
+                    rt_kprintf("%s\t %d\t %x\r\n", thread->name, app_item->use_num, app_item->mem_node);
                     //struct rt_list_node* list_node;
                     //APP下内存
                     int pos = 0;
@@ -940,9 +943,13 @@ void print_shm_app(lwt_shm_t lwt_shm, void *app)
                     {
                         //struct shm_mem* mem_item = get_relation_mem(list_node);
                         struct shm_relation* relation = (struct shm_relation*)((rt_base_t)list_node - struct_offset(struct shm_relation, mem_node));
-                        struct shm_mem* mem_item2 = relation->mem;//(struct shm_mem*)((rt_base_t)list_node - sizeof(struct shm_mem *));
+                        //struct shm_mem* mem_item2 = relation->mem;//(struct shm_mem*)((rt_base_t)list_node - sizeof(struct shm_mem *));
                         struct shm_mem* mem_item = *(struct shm_mem**)((rt_base_t)list_node - sizeof(struct shm_mem *));//在计算出的地址处,取值,得到的是指针!所以计算处的类型为**
-                        rt_kprintf("[%d]\t%x\t%d\t%x \r\n", pos++, mem_item->addr, mem_item->size, mem_item2->addr);
+                        // if(pos == 0) {
+                        //     rt_kprintf("\t addr\t size\r\n");
+                        // }
+                        //rt_kprintf("|---[%d]\t%x\t%d\t%x \r\n", pos++, mem_item->addr, mem_item->size, mem_item2->addr);
+                        rt_kprintf("|--[%d]\t 0x%x\t %d\r\n", pos++, mem_item->addr, mem_item->size);
                     }               
                 
                 }
@@ -988,7 +995,8 @@ void print_shm_mem(lwt_shm_t lwt_shm, void *mem)
                     for(struct rt_list_node* list_node = mem_item->app_node.next; list_node != &mem_item->app_node; list_node = list_node->next)
                     {
                         struct shm_app* app_item = *(struct shm_app**)((rt_base_t)list_node - sizeof(struct shm_app *));//在计算出的地址处,取值,得到的是指针!所以计算处的类型为**
-                        rt_kprintf("\t[%d]\t%x\t%d\t%x \r\n", pos++, app_item->lwp_addr, app_item->use_num, app_item->mem_node);
+                        rt_thread_t thread = (rt_thread_t)app_item->lwp_addr;
+                        rt_kprintf("|--[%d]\t%s\t%d\t%x \r\n", pos++, thread->name, app_item->use_num, app_item->mem_node);
                     }
                 }
             }

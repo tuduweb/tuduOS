@@ -12,6 +12,7 @@
 
 #define DBG_TAG    "LWP"
 #define DBG_LVL    DBG_WARNING
+//DBG_WARNING
 #include <rtdbg.h>
 
 //---->以下为日志单元的配置项
@@ -40,8 +41,8 @@ extern void lwp_user_entry(void *args, const void *text, void *r9, void *data);
 void lwt_set_kernel_sp(uint32_t *sp)
 {
     rt_thread_t thread = rt_thread_self();
-    struct rt_lwt *user_data;
-    user_data = (struct rt_lwt *)rt_thread_self()->lwp;
+    // struct rt_lwt *user_data;
+    // user_data = (struct rt_lwt *)rt_thread_self()->lwp;
     thread->kernel_sp = sp;
     //kernel_sp = sp;
 }
@@ -49,8 +50,8 @@ void lwt_set_kernel_sp(uint32_t *sp)
 uint32_t *lwt_get_kernel_sp(void)
 {
     rt_thread_t thread = rt_thread_self();
-    struct rt_lwt *user_data;
-    user_data = (struct rt_lwt *)rt_thread_self()->lwp;
+    // struct rt_lwt *user_data;
+    // user_data = (struct rt_lwt *)rt_thread_self()->lwp;
     return thread->kernel_sp;
 }
 
@@ -97,11 +98,11 @@ static int lwt_argscopy(struct rt_lwt *lwt, int argc, char **argv)
 static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr, size_t addr_size)
 {
     int fd;
-    uint8_t *ptr;
+    //uint8_t *ptr;
     int result = RT_EOK;
-    int nbytes;
-    struct lwt_header header;
-    struct lwt_chunk  chunk;
+    //int nbytes;
+    //struct lwt_header header;
+    //struct lwt_chunk  chunk;
 
     /* check file name */
     RT_ASSERT(filename != RT_NULL);
@@ -112,12 +113,12 @@ static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr
     if (load_addr != RT_NULL)
     {
         lwt->lwt_type = LWP_TYPE_FIX_ADDR;
-        ptr = load_addr;
+        //ptr = load_addr;
     }
     else
     {
         lwt->lwt_type = LWP_TYPE_DYN_ADDR;
-        ptr = RT_NULL;
+        //ptr = RT_NULL;
     }
 
 
@@ -167,7 +168,7 @@ static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr
         {
             dbg_log(DBG_ERROR, "alloc text memory faild!\n");
             result = -RT_ENOMEM;
-            goto _exit;
+            goto _fail;
         }
         else
         {
@@ -182,23 +183,21 @@ static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr
         if(nbytes != lwt->text_size)
         {
             result = -RT_EIO;
-            goto _exit;
+            goto _fail;
         }
 
         lwt->text_entry = text_entry;
 
 
-        
-
-
         //在app里面第9位
-        lwt->data_size = *(rt_uint32_t *)(lwt->text_entry + 0x80);//(uint8_t)*(lwt->text_entry + 9);//addr
+        #define TEXT_SIZE_DATA_OFFSET 0x80
+        lwt->data_size = *(rt_uint32_t *)(lwt->text_entry + TEXT_SIZE_DATA_OFFSET);//(uint8_t)*(lwt->text_entry + 9);//addr
         //申请数据空间
         //lwt->data_entry = rt_lwt_alloc_user(lwt,lwt->data_size);
-        lwt->data_entry = rt_malloc(lwt->data_size);
+        lwt->data_entry = (rt_uint8_t *)rt_malloc_align(lwt->data_size, 8);
         if (lwt->data_entry == RT_NULL)
         {
-            rt_free_align(text_entry);//释放text
+            //rt_free_align(text_entry);//释放text
             dbg_log(DBG_ERROR, "alloc data memory faild!\n");
             result = -RT_ENOMEM;
             goto _exit;
@@ -229,7 +228,7 @@ static int lwt_load(const char *filename, struct rt_lwt *lwt, uint8_t *load_addr
         goto _exit;
     }
 #endif
-    
+_fail:
 _exit:
     if(fd >= 0)
         close(fd);
@@ -311,7 +310,7 @@ _exit:
 
 int rt_lwt_free(struct rt_lwt *lwt)
 {
-    if(lwt)
+    if(lwt != RT_NULL)
     {
 
         if (lwt->lwt_type == LWP_TYPE_DYN_ADDR)
@@ -334,7 +333,7 @@ int rt_lwt_free(struct rt_lwt *lwt)
         if (lwt->data_entry)
         {
                 dbg_log(DBG_LOG, "lwp data free: %p\n", lwt->data_entry);
-                rt_free(lwt->data_entry);
+                rt_free_align(lwt->data_entry);
         }
 
         if(lwt->args)
@@ -342,7 +341,8 @@ int rt_lwt_free(struct rt_lwt *lwt)
             rt_free(lwt->args);
         }
 
-        rt_free(lwt->fdt.fds);
+        if(lwt->fdt.fds != RT_NULL)
+            rt_free(lwt->fdt.fds);
         rt_free(lwt);
     }
     return RT_EOK;
@@ -374,6 +374,7 @@ void lwt_ref_dec(struct rt_lwt **lwt_ptr)
             //无任何地方引用,执行删除操作
 
             //共享内存
+            shm_free_app_by_lwtAddr(lwt_ptr);
             //引用对象销毁
             while (lwt->fdt.maxfd > 1)
             {
@@ -387,7 +388,6 @@ void lwt_ref_dec(struct rt_lwt **lwt_ptr)
             //启动的也要删除吧
 
             //以上操作需要防止内存溢出
-            shm_free_app_by_lwtAddr(lwt_ptr);
             //TODO: 需要考虑父子关系需不需要处理?如何处理?
 
             rt_lwt_free(lwt);
@@ -463,6 +463,7 @@ void lwt_cleanup(rt_thread_t thread)
 void lwt_son_cleanup(rt_thread_t thread)
 {
     struct rt_lwt *lwt;
+    rt_kprintf("%s enter lwt son cleanup\n", thread->name);
 
     /**
      * clean sibling
@@ -528,11 +529,15 @@ int lwt_execve(char *filename, int argc, char **argv, char **envp)
     if(lwt_load(filename, lwt, 0, 0) != RT_EOK)
     {
         //其实需要cleanup
-        rt_free(lwt);
+        rt_lwt_free(lwt);
         return -RT_ERROR;
     }
 
+    /**
+     * 在dfs.c中 fd 0->2都会返回console的fd
+     */
     //构建线程FD表
+    extern int libc_stdio_get_console(void);//用于返回console的文件描述符(fd)
     int fd = libc_stdio_get_console();
     //get然后put是为了ref_count不增加
     struct dfs_fd *d = fd_get(fd);
@@ -635,9 +640,13 @@ void lwt_sub_thread_entry(void* parameter)
     //thread->stack_addr = 0;
 
     //仿照thread构造stack
-    rt_uint8_t* stack_base = (char *)thread->user_stack + thread->user_stack_size - sizeof(rt_ubase_t) +  + sizeof(rt_uint32_t);
+    //    rt_uint8_t* stack_base = (char *)thread->user_stack + thread->user_stack_size - sizeof(rt_ubase_t) +  + sizeof(rt_uint32_t);
+    rt_uint8_t* stack_base = (rt_uint8_t*)((char *)thread->user_stack + thread->user_stack_size - sizeof(rt_ubase_t) + sizeof(rt_uint32_t));
     stack_base = (rt_uint8_t *)RT_ALIGN_DOWN((rt_uint32_t)stack_base, 8);
 
+    //entry+R9为实际地址
+    //静态数据段和father共享，都是lwt->data_entry 这个数据作为R9 成为偏移地址
+    //stack_base作为这个子App的堆栈地址
     lwp_user_entry(parameter, thread->user_entry, lwt->data_entry, stack_base);
     
 }
@@ -666,6 +675,8 @@ rt_thread_t sys_thread_create(const char *name,
         thread->cleanup = lwt_cleanup;
 
         lwt = rt_thread_self()->lwp;
+
+        //在这里需要处理lwt结构下的东西.. 父子进程关系..
 
         thread->lwp = lwt;
 
@@ -698,7 +709,7 @@ rt_thread_t sys_thread_create(const char *name,
 
         /* for test */
         struct rt_list_node *n = lwt->t_grp.next;
-        rt_thread_t t = RT_NULL;
+        //rt_thread_t t = RT_NULL;
 
         while(n != &lwt->t_grp)
         {
@@ -719,6 +730,10 @@ rt_thread_t sys_thread_create(const char *name,
     return thread;
 }
 
+/**
+ * 子线程启动
+ * 子线程启动，这时候的LWT指向父进程的LWT，那么这个LWT引用也需要+1
+ */
 rt_err_t sys_thread_startup(rt_thread_t thread)
 {
     if(thread == NULL)
