@@ -2517,8 +2517,8 @@ void ipc_msg_init(bin_ipc_msg_t msg, bin_channel_msg_t data, rt_uint8_t need_rep
 /**
  * This function will create a mutex from system resource
  *
- * @param name the name of mutex
- * @param flag the flag of mutex
+ * @param name the name of channel
+ * @param flag the flag of channel
  *
  * @return the created mutex, RT_NULL on error happen
  *
@@ -2618,7 +2618,18 @@ int bin_channel_open(const char *name, rt_uint8_t flag)
         /* 放入fds操作集 */
         d = fd_get(fd);//ref_count++, =2
         d->type = FT_USER;
-        d->path = NULL;
+
+        rt_size_t namelen = rt_strlen(name);
+        char *tmp = (char *)rt_malloc(namelen + 1 + 4);
+    
+        if (!tmp) {
+            d->path = RT_NULL;
+        }else{
+            strcpy(tmp, "/ch/");
+            rt_memcpy(tmp + 4, name, namelen);
+            d->path = tmp;
+        }
+
         d->flags = O_RDWR; /* set flags as read and write */
         d->size = 0;
         d->pos  = 0;
@@ -2662,6 +2673,11 @@ rt_err_t bin_channel_close(int fd)
         /* delete channel object ,using kernel_free delete channel object */
         rt_object_delete(&(channel->parent.parent));
 
+        /* name */
+        if(d->path != RT_NULL) {
+            rt_free(d->path);
+            d->path = RT_NULL;
+        }
 
     }
 
@@ -3120,6 +3136,11 @@ static void channel_send_entry(void *parameter)
 
     rt_kprintf("SEND:ch%d errcode: %d\r\n", ch2, err);
 
+
+    err = bin_channel_close(ch2);
+    rt_kprintf("CLOSE:ch%d errcode: %d\r\n", ch2, err);
+
+
     //while(1);
 }
 
@@ -3144,6 +3165,9 @@ static void channel_recv_entry(void *parameter)
     //rt_list_remove(&(rt_thread_self()->tlist));
 
     //while(1);
+
+    err = bin_channel_close(ch);
+    rt_kprintf("CLOSE:ch%d errcode: %d\r\n", ch, err);
 }
 
 static void channel_recv2_entry(void *parameter)
@@ -3164,6 +3188,10 @@ static void channel_recv2_entry(void *parameter)
     rt_thread_mdelay(3000);
 
     bin_channel_reply(ch, &msg);
+
+
+    err = bin_channel_close(ch);
+    rt_kprintf("CLOSE:ch%d errcode: %d\r\n", ch, err);
 
     //while(1);
 }
