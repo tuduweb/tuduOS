@@ -10,7 +10,7 @@
  * 共享内存
  */
 
-#define LWT_SHM_DEBUG 1
+#define LWT_SHM_DEBUG 0
 
 
 struct _lwt_shm lwt_shm;
@@ -581,7 +581,9 @@ struct shm_mem_ref* get_shm_mem_ref(struct shm_app* app, void* addr)
 
         /* copy old then free old,change pointer */
         rt_memcpy(mem_ref_item, app->ref_tab, sizeof(struct shm_mem_ref)*app->ref_tab_size);
-        rt_free(app->ref_tab);
+        if(RT_NULL != app->ref_tab) {
+            rt_free(app->ref_tab);
+        }
         app->ref_tab = mem_ref_item;
         app->ref_tab_size += SHM_MEM_REF_APPEND_NUM;
 
@@ -604,6 +606,9 @@ struct shm_mem_ref* get_shm_mem_ref(struct shm_app* app, void* addr)
 void *lwt_shm_alloc(int size)
 {
     struct shm_app* app;
+
+    rt_kprintf("call alloc %s\r\n", rt_thread_self()->name);
+
 #if LWT_SHM_DEBUG == 1
     app = find_shm_app(&lwt_shm, (void *)0x20000800);//查找当前的LWP有没有APP
 #else
@@ -620,7 +625,11 @@ void *lwt_shm_alloc(int size)
 #if LWT_SHM_DEBUG == 1
         app->lwp_addr = 0x20000800;//(rt_uint32_t)rt_thread_self()->lwp;
 #else
-        app->lwp_addr = (rt_uint32_t)rt_thread_self()->lwp;
+        rt_uint32_t lwp_addr = (rt_uint32_t)rt_thread_self()->lwp;
+
+        //app->lwp_addr = (rt_uint32_t)rt_thread_self()->lwp; // when the thread is tshell, lwp_addr is empty
+        app->lwp_addr = (rt_uint32_t)rt_thread_self(); // when the thread is tshell, lwp_addr is empty
+
 #endif
     }
 
@@ -680,7 +689,7 @@ rt_err_t lwt_shm_retain(void* addr)
 #if LWT_SHM_DEBUG == 1
                 app->lwp_addr = 0x20000808;//(rt_uint32_t)rt_thread_self()->lwp;
 #else
-                app->lwp_addr = (rt_uint32_t)rt_thread_self()->lwp;
+                app->lwp_addr = (rt_uint32_t)rt_thread_self();
 #endif
             }else{
                 /* cant new shm_app */
@@ -759,9 +768,10 @@ rt_err_t lwt_shm_free(void* addr)
     for(node = mem->app_node.next; node != &mem->app_node; node = node->next)
     {
         /* get app_item from struct<shm_relation> */
-        relation = (*(struct shm_relation**)(node - struct_offset(struct shm_relation, app_node) ));
+        rt_uint32_t offset = struct_offset(struct shm_relation, app_node);
+        relation = ((struct shm_relation*)((rt_uint32_t)node - offset ));
         //relation->app
-        if(relation->app->lwp_addr == (rt_uint32_t)rt_thread_self()->lwp)
+        if(relation->app->lwp_addr == (rt_uint32_t)rt_thread_self())
         {
             app = relation->app;
             break;
@@ -808,6 +818,30 @@ rt_err_t lwt_shm_free(void* addr)
     return RT_EOK;
 }
 
+/**
+ * free all shm related to app
+ */
+rt_err_t shm_free_app_by_threadAddr(void* thread_addr) {
+    struct shm_app* app = find_shm_app(&lwt_shm, thread_addr);
+    rt_thread_t thread = (rt_thread_t)thread_addr;
+    if(app != RT_NULL) {
+        rt_kprintf("attempt to free app %s\r\n", thread->name);
+        return RT_EOK;
+    }
+
+    return -RT_ERROR;
+}
+
+rt_err_t shm_free_app_by_lwtAddr(void* lwt_addr) {
+    rt_uint32_t offset = struct_offset(struct rt_thread, lwp);
+    rt_uint32_t addr = (rt_uint32_t)lwt_addr - offset;
+    return shm_free_app_by_threadAddr((void *)addr);
+}
+
+
+
+
+/* bmem test start */
 void shm_malloc_test(int argc,char* argv[])
 {
     rt_uint32_t addr = 0;
@@ -834,6 +868,7 @@ void shm_free_test(int argc,char* argv[])
     }
 }
 MSH_CMD_EXPORT(shm_free_test, free!);
+/* bmem test end */
 
 void sys_alloc_test(int argc,char* argv[])
 {
@@ -845,19 +880,42 @@ void sys_alloc_test(int argc,char* argv[])
 
         rt_kprintf("shm retain\r\n");
 
-        lwt_shm_retain((void *)addr);
+        rt_err_t res = lwt_shm_retain((void *)addr);
+
+        rt_kprintf("retain result %d\r\n", res);
 
     }
-
 }
 MSH_CMD_EXPORT(sys_alloc_test, alloc!);
+
+void sys_alloc_test2(int argc,char* argv[])
+{	
+	rt_ubase_t msg = 0;
+
+	rt_uint32_t addr = (rt_uint32_t)lwt_shm_alloc(100);
+	rt_kprintf("shmalloc addr 0x%x\r\n", addr);
+
+	char* dataPtr = (char*)addr;
+
+	for(int k = 0; k < 26; ++k) {
+		*dataPtr++ = 'a' + k;
+	}
+	*dataPtr = '\0';
+
+	rt_kprintf("thread print: %s addr\r\n", (char *)addr);
+
+	rt_err_t res = lwt_shm_free((void *)addr);
+
+    rt_kprintf("free result %d\r\n", res);
+}
+MSH_CMD_EXPORT(sys_alloc_test2, alloc 2!);
 
 void print_shm_app(lwt_shm_t lwt_shm, void *app)
 {
     struct shm_app_tab* app_tab_item;
     struct shm_app* app_item;
 
-    rt_kprintf("lwt_addr\tusn\tnode\r\n");
+    rt_kprintf("l_addr\tusn\tnode\r\n");
 
 
     if(app == RT_NULL)
@@ -930,7 +988,7 @@ void print_shm_mem(lwt_shm_t lwt_shm, void *mem)
                     for(struct rt_list_node* list_node = mem_item->app_node.next; list_node != &mem_item->app_node; list_node = list_node->next)
                     {
                         struct shm_app* app_item = *(struct shm_app**)((rt_base_t)list_node - sizeof(struct shm_app *));//在计算出的地址处,取值,得到的是指针!所以计算处的类型为**
-                        rt_kprintf("[%d]\t%x\t%d\t%x \r\n", pos++, app_item->lwp_addr, app_item->use_num, app_item->mem_node);
+                        rt_kprintf("\t[%d]\t%x\t%d\t%x \r\n", pos++, app_item->lwp_addr, app_item->use_num, app_item->mem_node);
                     }
                 }
             }

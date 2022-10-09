@@ -305,6 +305,40 @@ rt_err_t sys_mb_recv(rt_mailbox_t mb, rt_ubase_t *value, rt_int32_t timeout)
 }
 
 
+#include "lwt_shm.h"
+
+/*
+rt_err_t lwt_shm_retain(void* addr);
+void *lwt_shm_alloc(int size);
+rt_err_t lwt_shm_free(void* addr);
+*/
+
+void *sys_lwt_shm_alloc(int size)
+{
+	  rt_uint32_t addr = (rt_uint32_t)lwt_shm_alloc(size);
+    return (void *)addr;
+}
+
+rt_err_t sys_lwt_shm_free(void* addr)
+{
+    return lwt_shm_free(addr);
+}
+
+rt_err_t sys_lwt_shm_retain(void* addr)
+{
+    return lwt_shm_retain(addr);
+}
+
+/*
+int bin_channel_open(const char *name, rt_uint8_t flag)
+void ipc_msg_init(bin_ipc_msg_t msg, bin_channel_msg_t data, rt_uint8_t need_reply)
+rt_err_t bin_channel_close(int fd)
+rt_err_t bin_channel_recv(int fd, rt_int32_t timeout, bin_channel_msg_t msg)
+rt_err_t bin_channel_send(int fd, struct bin_channel_msg* msg, int need_reply)
+rt_err_t bin_channel_reply(int fd, bin_channel_msg_t msg)
+
+*/
+
 //浮动一下,从0x60开始吧
 const static void* func_table2[] =
 {
@@ -312,12 +346,16 @@ const static void* func_table2[] =
     (void *)sys_thread_startup,//0x61
     (void *)sys_thread_mdelay,//0x62
 
-    (void *)sys_mb_create,
+    (void *)sys_mb_create,//3
     (void *)rt_mb_delete,
     (void *)rt_mb_send,
     (void *)rt_mb_recv,
 
-    (void *)rt_kprintf,
+    (void *)rt_kprintf,//7
+
+    (void *)sys_lwt_shm_alloc,//0x68
+    (void *)sys_lwt_shm_free,
+    (void *)sys_lwt_shm_retain,
 };
 
 

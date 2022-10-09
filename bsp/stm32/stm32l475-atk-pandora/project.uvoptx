@@ -140,7 +140,7 @@
         <SetRegEntry>
           <Number>0</Number>
           <Key>ST-LINKIII-KEIL_SWO</Key>
-          <Name>-U066EFF495056867767053013 -I0 -O206 -S1 -C0 -A0 -N00("ARM CoreSight SW-DP") -D00(2BA01477) -L00(0) -TO18 -TC10000000 -TP21 -TDS8007 -TDT0 -TDC1F -TIEFFFFFFFF -TIP8 -FO15 -FD20000000 -FC1000 -FN1 -FF0STM32L4xx_512.FLM -FS08000000 -FL080000 -FP0($$Device:STM32L475VETx$CMSIS\Flash\STM32L4xx_512.FLM)</Name>
+          <Name>-U066FFF515255706587235536 -I0 -O206 -S1 -C0 -A0 -N00("ARM CoreSight SW-DP") -D00(2BA01477) -L00(0) -TO18 -TC10000000 -TP21 -TDS8007 -TDT0 -TDC1F -TIEFFFFFFFF -TIP8 -FO15 -FD20000000 -FC1000 -FN1 -FF0STM32L4xx_512.FLM -FS08000000 -FL080000 -FP0($$Device:STM32L475VETx$CMSIS\Flash\STM32L4xx_512.FLM)</Name>
         </SetRegEntry>
         <SetRegEntry>
           <Number>0</Number>
@@ -157,107 +157,68 @@
         <Bp>
           <Number>0</Number>
           <Type>0</Type>
-          <LineNumber>534</LineNumber>
+          <LineNumber>226</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134301956</Address>
+          <Address>134252038</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\..\..\components\dfs\src\dfs.c</Filename>
+          <Filename>..\..\..\components\lwp\lwp_syscall.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\rt_thread\../../../components/dfs/src/dfs.c\534</Expression>
+          <Expression>\\rt_thread\../../../components/lwp/lwp_syscall.c\226</Expression>
         </Bp>
         <Bp>
           <Number>1</Number>
           <Type>0</Type>
-          <LineNumber>536</LineNumber>
+          <LineNumber>0</LineNumber>
           <EnabledFlag>1</EnabledFlag>
-          <Address>134301960</Address>
+          <Address>536929780</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\..\..\components\dfs\src\dfs.c</Filename>
+          <Filename></Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\rt_thread\../../../components/dfs/src/dfs.c\536</Expression>
+          <Expression>0x2000E5F4</Expression>
         </Bp>
         <Bp>
           <Number>2</Number>
           <Type>0</Type>
-          <LineNumber>90</LineNumber>
-          <EnabledFlag>0</EnabledFlag>
-          <Address>134369450</Address>
+          <LineNumber>108</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>134218976</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\..\..\extends\bin-core\server.c</Filename>
+          <Filename>..\..\..\components\lwp\arch\arm\cortex-m4\lwp_rvds.S</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\rt_thread\../../../extends/bin-core/server.c\90</Expression>
+          <Expression>\\rt_thread\../../../components/lwp/arch/arm/cortex-m4/lwp_rvds.S\108</Expression>
         </Bp>
         <Bp>
           <Number>3</Number>
           <Type>0</Type>
-          <LineNumber>103</LineNumber>
-          <EnabledFlag>0</EnabledFlag>
-          <Address>134369496</Address>
+          <LineNumber>381</LineNumber>
+          <EnabledFlag>1</EnabledFlag>
+          <Address>134270198</Address>
           <ByteObject>0</ByteObject>
           <HtxType>0</HtxType>
           <ManyObjects>0</ManyObjects>
           <SizeOfObject>0</SizeOfObject>
           <BreakByAccess>0</BreakByAccess>
           <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\..\..\extends\bin-core\server.c</Filename>
+          <Filename>..\..\..\extends\bin-core\xipfs.c</Filename>
           <ExecCommand></ExecCommand>
-          <Expression>\\rt_thread\../../../extends/bin-core/server.c\103</Expression>
-        </Bp>
-        <Bp>
-          <Number>4</Number>
-          <Type>0</Type>
-          <LineNumber>95</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>134341642</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>1</BreakIfRCount>
-          <Filename>..\..\..\components\drivers\spi\qspi_core.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression>\\rt_thread\../../../components/drivers/spi/qspi_core.c\95</Expression>
-        </Bp>
-        <Bp>
-          <Number>5</Number>
-          <Type>0</Type>
-          <LineNumber>632</LineNumber>
-          <EnabledFlag>1</EnabledFlag>
-          <Address>0</Address>
-          <ByteObject>0</ByteObject>
-          <HtxType>0</HtxType>
-          <ManyObjects>0</ManyObjects>
-          <SizeOfObject>0</SizeOfObject>
-          <BreakByAccess>0</BreakByAccess>
-          <BreakIfRCount>0</BreakIfRCount>
-          <Filename>..\..\..\src\thread.c</Filename>
-          <ExecCommand></ExecCommand>
-          <Expression></Expression>
+          <Expression>\\rt_thread\../../../extends/bin-core/xipfs.c\381</Expression>
         </Bp>
       </Breakpoint>
-      <WatchWindow1>
-        <Ww>
-          <count>0</count>
-          <WinNumber>1</WinNumber>
-          <ItemText>*((struct rt_mutex *)0x200032D4)</ItemText>
-        </Ww>
-      </WatchWindow1>
       <Tracepoint>
         <THDelay>0</THDelay>
       </Tracepoint>
@@ -672,7 +633,7 @@
 
   <Group>
     <GroupName>Drivers</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -916,7 +877,7 @@
 
   <Group>
     <GroupName>Extends</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -1516,7 +1477,7 @@
 
   <Group>
     <GroupName>lwP</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
@@ -1916,7 +1877,7 @@
 
   <Group>
     <GroupName>Utilities</GroupName>
-    <tvExp>0</tvExp>
+    <tvExp>1</tvExp>
     <tvExpOptDlg>0</tvExpOptDlg>
     <cbSel>0</cbSel>
     <RteFlg>0</RteFlg>
